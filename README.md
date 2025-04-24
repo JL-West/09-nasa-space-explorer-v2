@@ -1,1 +1,1 @@
-# 07-nasa-space-explorer
+# Project 7: NASA API - Space Explorer App
