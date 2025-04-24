@@ -66,13 +66,13 @@ button {
 
 /* Button specific */
 button {
-  background-color: #105bd8;
+  background-color: #333; 
   color: white;
   border: none;
   cursor: pointer;
 }
 button:hover {
-  background-color: #3374e4;
+  background-color: #555; 
 }
 
 /* Stack horizontally on wider screens */
