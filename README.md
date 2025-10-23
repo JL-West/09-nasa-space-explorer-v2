@@ -1,6 +1,6 @@
 # Project: NASA Space Explorer App (JSON Edition)
 
-NASA publishes an **Astronomy Picture of the Day (APOD)**—images and videos with short explanations about our universe.
+NASA publishes an [**Astronomy Picture of the Day (APOD)**](https://apod.nasa.gov/apod/archivepixFull.html)—images and videos with short explanations about our universe.
 
 In this project, you’ll build a gallery that fetches APOD-style entries from a **provided JSON feed** (same field names as the real APOD API). Render a grid of items and a modal with details.
 
