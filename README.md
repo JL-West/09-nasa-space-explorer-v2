@@ -1,4 +1,4 @@
-# Project: NASA APOD – Space Explorer App (JSON Edition)
+# Project: NASA Space Explorer App (JSON Edition)
 
 NASA publishes an **Astronomy Picture of the Day (APOD)**—images and videos with short explanations about our universe.
 
