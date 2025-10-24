@@ -32,7 +32,11 @@ https://cdn.jsdelivr.net/gh/GCA-Classroom/apod/data.json
 }
 ```
 
-### Example object (video)
+### Example object (with video)
+Not all APOD entries are images. Some are YouTube videos. Detect video entries and handle them appropriately by either embedding the video, displaying the thumbnail image, or providing a clear, clickable link to the video. 
+
+The goal is to ensure users can easily access or clearly view content regardless of its media type.
+
 ```json
 {
   "date": "2024-06-30",
@@ -47,6 +51,6 @@ https://cdn.jsdelivr.net/gh/GCA-Classroom/apod/data.json
 
 ### Your Task
 * **Fetch the JSON:** Request the CDN URL above and parse the returned array.
-* **Display the Gallery:** For each item, show the image (or video thumbnail), title, and date.
+* **Display the Gallery:** For each item, show the image (or video thumbnail/player), title, and date.
 
 
