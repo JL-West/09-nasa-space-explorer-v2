@@ -8,7 +8,7 @@ In this project, you’ll build a gallery that fetches APOD-style entries from a
 
 ## Data Source (CDN)
 
-Use this URL in your `fetch` calls:
+Use this URL in your `fetch` request:
 
 ```js
 https://cdn.jsdelivr.net/gh/GCA-Classroom/apod/data.json
