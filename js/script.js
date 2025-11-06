@@ -3,6 +3,7 @@ const getImageBtn = document.getElementById('getImageBtn');
 const gallery = document.getElementById('gallery');
 const queryInput = document.getElementById('queryInput');
 const numSelect = document.getElementById('numSelect');
+const dateSelect = document.getElementById('dateSelect');
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -73,10 +74,14 @@ function setCache(key, data) {
 
 async function fetchSpaceImages() {
 	const rawQuery = (queryInput.value || '').trim();
-	const query = rawQuery.length ? rawQuery : 'space';
+	const queryBase = rawQuery.length ? rawQuery : 'space';
+	// If a date is selected, include it in the search string to bias results for that date.
+	const selectedDate = (dateSelect && dateSelect.value) ? dateSelect.value : '';
+	const query = selectedDate ? `${queryBase} ${selectedDate}` : queryBase;
 	const count = parseInt(numSelect.value, 10) || 6;
 
-	const cacheKey = `nasa_cache_${query.toLowerCase()}_${count}`;
+	// include date in cache key to avoid mixing results
+	const cacheKey = `nasa_cache_${(queryBase + (selectedDate ? `_${selectedDate}` : '')).toLowerCase()}_${count}`;
 	const cached = getCache(cacheKey);
 	if (cached && Array.isArray(cached) && cached.length) {
 		renderImages(cached);
@@ -314,3 +319,21 @@ function showFunFact() {
 	funFactEl.textContent = `Fun space fact: ${f}`;
 }
 showFunFact();
+
+// Populate the date dropdown with dates from 1995-06-16 (first APOD) up to 2025-10-01 (newest first)
+// Note: this will generate a large list (~30 years daily) — if you'd prefer a compact UI
+// we can switch to an <input type="date"> with max="2025-10-01" instead.
+if (dateSelect) {
+	const start = new Date('1995-06-16');
+	const end = new Date('2025-10-01');
+	for (let d = end; d >= start; d.setDate(d.getDate() - 1)) {
+		const yyyy = d.getFullYear();
+		const mm = String(d.getMonth() + 1).padStart(2, '0');
+		const dd = String(d.getDate()).padStart(2, '0');
+		const val = `${yyyy}-${mm}-${dd}`;
+		const opt = document.createElement('option');
+		opt.value = val;
+		opt.textContent = val;
+		dateSelect.appendChild(opt);
+	}
+}
