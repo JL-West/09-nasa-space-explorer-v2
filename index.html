@@ -20,7 +20,8 @@
         <option value="6" selected>6 images</option>
         <option value="9">9 images</option>
       </select>
-  <button id="getImageBtn" type="button">Fetch Space Images</button>
+      <button id="getImageBtn" type="button">Fetch Space Images</button>
+      <button id="clearCacheBtn" type="button">Clear Cache</button>
     </div>
 
     <div id="gallery" class="gallery">
@@ -34,6 +35,23 @@
         <p class="liftoff-text">Preparing For Liftoff...</p>
       </div>
     </div>
+
+    <!-- Lightbox / modal for full preview (image or video) -->
+    <div id="lightbox" class="lightbox" aria-hidden="true">
+      <div class="lightbox-backdrop" id="lightboxBackdrop"></div>
+      <div class="lightbox-content" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle">
+        <button id="lightboxClose" class="lightbox-close" aria-label="Close preview">✕</button>
+        <h2 id="lightboxTitle" class="sr-only">Preview</h2>
+        <div id="lightboxMedia" class="lightbox-media"></div>
+        <div id="lightboxMeta" class="lightbox-meta"></div>
+      </div>
+    </div>
+
+    <!-- Status region for accessibility -->
+    <div id="status" class="sr-only" aria-live="polite"></div>
+
+    <!-- Fun fact area -->
+    <div id="funFact" class="fun-fact" aria-live="polite"></div>
   </div>
 
   <script src="js/script.js"></script>

@@ -218,3 +218,79 @@ button:hover {
   font-size: 48px;
   margin-bottom: 20px;
 }
+
+/* metadata under each gallery item */
+.gallery-item .meta {
+  font-size: 12px;
+  color: #666;
+  margin-top: 6px;
+}
+
+/* Lightbox / modal styles */
+.lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+.lightbox[aria-hidden="false"] {
+  display: block;
+}
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+}
+.lightbox-content {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(90%, 900px);
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  max-height: 90vh;
+  overflow: auto;
+}
+.lightbox-close {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+}
+.lightbox-media img,
+.lightbox-media video {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+.lightbox-meta {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #333;
+}
+
+/* Fun-fact area */
+.fun-fact {
+  margin: 18px 20px;
+  padding: 12px 14px;
+  background: linear-gradient(90deg, #fff, #f7fbff);
+  border-radius: 8px;
+  color: #123;
+  font-size: 15px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+/* Screen-reader only helper */
+.sr-only {
+  position: absolute !important;
+  height: 1px; width: 1px;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  white-space: nowrap; /* added line */
+}
