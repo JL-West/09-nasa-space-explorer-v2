@@ -54,3 +54,15 @@ The goal is to ensure users can easily access or clearly view content regardless
 * **Display the Gallery:** For each item, show the image (or video thumbnail/player), title, and date.
 
 
+## Local run & cache behavior
+
+To run the site locally you can use a simple static server (Python 3 example):
+
+```bash
+python3 -m http.server 8000
+# then open http://localhost:8000
+```
+
+The app caches search results in `localStorage` using keys prefixed with `nasa_cache_` and a TTL of 6 hours. Use the "Clear Cache" button in the UI to remove cached search results immediately.
+
+

@@ -142,3 +142,154 @@ if (queryInput) {
 		}
 	});
 }
+
+// Clear cache button
+const clearCacheBtn = document.getElementById('clearCacheBtn');
+const statusEl = document.getElementById('status');
+const lightbox = document.getElementById('lightbox');
+const lightboxBackdrop = document.getElementById('lightboxBackdrop');
+const lightboxClose = document.getElementById('lightboxClose');
+const lightboxMedia = document.getElementById('lightboxMedia');
+const lightboxMeta = document.getElementById('lightboxMeta');
+const funFactEl = document.getElementById('funFact');
+
+function setStatus(msg) {
+	if (statusEl) statusEl.textContent = msg;
+}
+
+function clearCache() {
+	const keys = Object.keys(localStorage);
+	let removed = 0;
+	for (const k of keys) {
+		if (k && k.startsWith('nasa_cache_')) {
+			localStorage.removeItem(k);
+			removed++;
+		}
+	}
+	setStatus(`Cleared ${removed} cached result(s).`);
+	// show placeholder after clearing
+	showOrbitPlaceholder();
+}
+
+if (clearCacheBtn) {
+	clearCacheBtn.addEventListener('click', (e) => {
+		e.preventDefault();
+		clearCache();
+	});
+}
+
+// Lightbox helpers
+function openLightbox(item) {
+	if (!lightbox) return;
+	lightbox.setAttribute('aria-hidden', 'false');
+	setStatus(`Opening preview: ${item.title || ''}`);
+	// show a quick loading message
+	lightboxMedia.innerHTML = `<div class="placeholder"><p>Loading preview…</p></div>`;
+	lightboxMeta.textContent = '';
+
+	// If we have a nasa_id, try the asset endpoint to find video or larger files
+	(async () => {
+		try {
+			if (item.nasa_id) {
+				const assetUrl = `https://images-api.nasa.gov/asset/${encodeURIComponent(item.nasa_id)}`;
+				const resp = await fetch(assetUrl);
+				if (resp.ok) {
+					const data = await resp.json();
+					const assetItems = (data.collection && data.collection.items) || [];
+					// look for mp4 video first
+					const video = assetItems.find(a => a.href && a.href.match(/\.mp4$/i));
+					if (video) {
+						lightboxMedia.innerHTML = `<video controls src="${video.href}"></video>`;
+					} else {
+						// fallback: pick the largest jpg (prefer those without ~thumb or small)
+						const jpg = assetItems.reverse().find(a => a.href && a.href.match(/\.jpe?g$/i));
+						if (jpg) {
+							lightboxMedia.innerHTML = `<img src="${jpg.href}" alt="${item.title || ''}"/>`;
+						} else {
+							lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
+						}
+					}
+				} else {
+					// fallback to provided href
+					lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
+				}
+			} else {
+				lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
+			}
+		} catch (err) {
+			console.error('Lightbox asset error', err);
+			lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
+		}
+
+		// show metadata
+		const metaParts = [];
+		if (item.date_created) metaParts.push(`Date: ${item.date_created}`);
+		if (item.photographer) metaParts.push(`By: ${item.photographer}`);
+		if (item.center) metaParts.push(`Center: ${item.center}`);
+		lightboxMeta.textContent = metaParts.join(' • ');
+	})();
+}
+
+function closeLightbox() {
+	if (!lightbox) return;
+	lightbox.setAttribute('aria-hidden', 'true');
+	lightboxMedia.innerHTML = '';
+	lightboxMeta.textContent = '';
+	setStatus('Closed preview.');
+}
+
+if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+if (lightboxBackdrop) lightboxBackdrop.addEventListener('click', closeLightbox);
+document.addEventListener('keydown', (e) => {
+	if ((e.key === 'Escape' || e.key === 'Esc') && lightbox && lightbox.getAttribute('aria-hidden') === 'false') {
+		closeLightbox();
+	}
+});
+
+// Render images now attaches click handlers for lightbox
+const originalRenderImages = renderImages;
+function renderImages(images) {
+	gallery.innerHTML = '';
+	images.forEach(img => {
+		const item = document.createElement('div');
+		item.className = 'gallery-item';
+
+		const imageEl = document.createElement('img');
+		imageEl.src = img.href;
+		imageEl.alt = img.title || 'NASA Image';
+
+		const caption = document.createElement('p');
+		caption.textContent = img.title || '';
+
+		const meta = document.createElement('div');
+		meta.className = 'meta';
+		const metaParts = [];
+		if (img.date_created) metaParts.push(`Date: ${img.date_created}`);
+		if (img.photographer) metaParts.push(`By: ${img.photographer}`);
+		if (img.center) metaParts.push(`Center: ${img.center}`);
+		meta.textContent = metaParts.join(' • ');
+
+		item.appendChild(imageEl);
+		item.appendChild(caption);
+		if (meta.textContent) item.appendChild(meta);
+		gallery.appendChild(item);
+
+		// open lightbox when clicked
+		item.addEventListener('click', () => openLightbox(img));
+	});
+}
+
+// Fun facts
+const FUN_FACTS = [
+	'A day on Venus is longer than a year on Venus.',
+	'One million Earths could fit inside the Sun.',
+	'There are more trees on Earth than stars in the Milky Way.',
+	'Jupiter’s magnetic field is 20,000 times stronger than Earth’s.',
+	'Neutron stars can spin 600 times per second.'
+];
+function showFunFact() {
+	if (!funFactEl) return;
+	const f = FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
+	funFactEl.textContent = `Fun space fact: ${f}`;
+}
+showFunFact();
