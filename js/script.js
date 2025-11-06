@@ -93,16 +93,29 @@ async function fetchSpaceImages() {
 		if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
 		const data = await resp.json();
 
-		const items = (data.collection && data.collection.items) || [];
-		const images = [];
-		for (const item of items) {
-			if (!item.links || !item.links.length) continue;
-			const link = item.links.find(l => l.render === 'image') || item.links[0];
-			if (!link || !link.href) continue;
-			const title = (item.data && item.data[0] && item.data[0].title) || '';
-			images.push({ href: link.href, title });
-			if (images.length >= count) break;
-		}
+			const items = (data.collection && data.collection.items) || [];
+			const images = [];
+			for (const item of items) {
+				if (!item.links || !item.links.length) continue;
+				const link = item.links.find(l => l.render === 'image') || item.links[0];
+				if (!link || !link.href) continue;
+				const d = (item.data && item.data[0]) || {};
+				const title = d.title || '';
+				const photographer = d.photographer || d.secondary_creator || d.credit || d.copyright || '';
+				const description = d.description || d.description_508 || d.explanation || '';
+				const imgObj = {
+					href: link.href,
+					title,
+					nasa_id: d.nasa_id,
+					date_created: d.date_created,
+					photographer,
+					center: d.center || '',
+					description,
+					keywords: d.keywords || []
+				};
+				images.push(imgObj);
+				if (images.length >= count) break;
+			}
 
 			if (images.length === 0) {
 				gallery.innerHTML = `
@@ -113,7 +126,7 @@ async function fetchSpaceImages() {
 				renderImages(images);
 				setCache(cacheKey, images);
 			}
-		} catch (err) {
+			} catch (err) {
 			console.error('Fetch error', err);
 			gallery.innerHTML = `
 				<div class="placeholder">
@@ -221,12 +234,20 @@ function openLightbox(item) {
 			lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
 		}
 
-		// show metadata
-		const metaParts = [];
-		if (item.date_created) metaParts.push(`Date: ${item.date_created}`);
-		if (item.photographer) metaParts.push(`By: ${item.photographer}`);
-		if (item.center) metaParts.push(`Center: ${item.center}`);
-		lightboxMeta.textContent = metaParts.join(' • ');
+				// show metadata and description with a link to NASA Images details page when available
+				let metaHTML = '';
+				if (item.title) metaHTML += `<h3>${item.title}</h3>`;
+				const smallParts = [];
+				if (item.date_created) smallParts.push(`Date: ${item.date_created}`);
+				if (item.photographer) smallParts.push(`By: ${item.photographer}`);
+				if (item.center) smallParts.push(`Center: ${item.center}`);
+				if (smallParts.length) metaHTML += `<div>${smallParts.join(' • ')}</div>`;
+				if (item.description) metaHTML += `<p class="lightbox-desc">${item.description}</p>`;
+				if (item.nasa_id) {
+					const detailsUrl = `https://images.nasa.gov/details/${encodeURIComponent(item.nasa_id)}`;
+					metaHTML += `<p><a href="${detailsUrl}" target="_blank" rel="noopener">View on NASA Images</a></p>`;
+				}
+				lightboxMeta.innerHTML = metaHTML;
 	})();
 }
 
