@@ -1,65 +1,119 @@
-// Fetch & display space images from NASA Images API when the user clicks the button.
-// We use the public Images API at images-api.nasa.gov which doesn't require an API key.
-
+// Enhanced fetch & display with controls and caching
 const getImageBtn = document.getElementById('getImageBtn');
 const gallery = document.getElementById('gallery');
+const queryInput = document.getElementById('queryInput');
+const numSelect = document.getElementById('numSelect');
 
-// Fetch images from NASA and render the first 6 results.
-async function fetchSpaceImages() {
-	const url = 'https://images-api.nasa.gov/search?q=space&media_type=image';
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function showOrbitPlaceholder() {
+	gallery.innerHTML = `
+		<div class="placeholder orbit-placeholder">
+			<div class="orbit-container" aria-hidden="true">
+				<div class="orbit"></div>
+				<div class="planet"></div>
+				<div class="satellite"></div>
+			</div>
+			<p class="liftoff-text">Preparing For Liftoff...</p>
+		</div>`;
+}
+
+function showLoading() {
+	gallery.innerHTML = `
+		<div class="placeholder">
+			<div class="placeholder-icon">🔄</div>
+			<p>Loading images…</p>
+		</div>`;
+}
+
+function renderImages(images) {
+	gallery.innerHTML = '';
+	images.forEach(img => {
+		const item = document.createElement('div');
+		item.className = 'gallery-item';
+
+		const imageEl = document.createElement('img');
+		imageEl.src = img.href;
+		imageEl.alt = img.title || 'NASA Image';
+
+		const caption = document.createElement('p');
+		caption.textContent = img.title || '';
+
+		item.appendChild(imageEl);
+		item.appendChild(caption);
+		gallery.appendChild(item);
+	});
+}
+
+function getCache(key) {
 	try {
-		// show a small loading placeholder
-		gallery.innerHTML = `
-			<div class="placeholder">
-				<div class="placeholder-icon">🔄</div>
-				<p>Loading images…</p>
-			</div>`;
+		const raw = localStorage.getItem(key);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw);
+		if (!parsed.ts || !parsed.data) return null;
+		if (Date.now() - parsed.ts > CACHE_TTL_MS) {
+			localStorage.removeItem(key);
+			return null;
+		}
+		return parsed.data;
+	} catch (e) {
+		console.warn('Cache parse error', e);
+		return null;
+	}
+}
 
+function setCache(key, data) {
+	try {
+		const payload = { ts: Date.now(), data };
+		localStorage.setItem(key, JSON.stringify(payload));
+	} catch (e) {
+		console.warn('Failed to set cache', e);
+	}
+}
+
+async function fetchSpaceImages() {
+	const rawQuery = (queryInput.value || '').trim();
+	const query = rawQuery.length ? rawQuery : 'space';
+	const count = parseInt(numSelect.value, 10) || 6;
+
+	const cacheKey = `nasa_cache_${query.toLowerCase()}_${count}`;
+	const cached = getCache(cacheKey);
+	if (cached && Array.isArray(cached) && cached.length) {
+		renderImages(cached);
+		return;
+	}
+
+	showLoading();
+
+	const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image`;
+	try {
 		const resp = await fetch(url);
 		if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
 		const data = await resp.json();
 
 		const items = (data.collection && data.collection.items) || [];
 		const images = [];
-
-		// collect up to 6 image links with titles
 		for (const item of items) {
 			if (!item.links || !item.links.length) continue;
-			// pick a link that looks like an image
 			const link = item.links.find(l => l.render === 'image') || item.links[0];
 			if (!link || !link.href) continue;
-			const title = (item.data && item.data[0] && item.data[0].title) || 'NASA Image';
+			const title = (item.data && item.data[0] && item.data[0].title) || '';
 			images.push({ href: link.href, title });
-			if (images.length >= 6) break;
+			if (images.length >= count) break;
 		}
 
 		if (images.length === 0) {
 			gallery.innerHTML = `
 				<div class="placeholder">
-					<p>No images found. Try again later.</p>
+					<p>No images found for "${query}". Try a different search.</p>
 				</div>`;
 			return;
 		}
 
-		// render images into the gallery
-		gallery.innerHTML = '';
-		images.forEach(img => {
-			const item = document.createElement('div');
-			item.className = 'gallery-item';
-
-			const imageEl = document.createElement('img');
-			imageEl.src = img.href;
-			imageEl.alt = img.title;
-
-			const caption = document.createElement('p');
-			caption.textContent = img.title;
-
-			item.appendChild(imageEl);
-			item.appendChild(caption);
-			gallery.appendChild(item);
-		});
+		renderImages(images);
+		setCache(cacheKey, images);
 	} catch (err) {
-		console.error('Failed to fetch images', err);
+		console.error('Fetch error', err);
 		gallery.innerHTML = `
 			<div class="placeholder">
 				<p>Error loading images: ${err.message}</p>
@@ -67,5 +121,6 @@ async function fetchSpaceImages() {
 	}
 }
 
-// Wire up the button
+// Initialize UI and wire events
+showOrbitPlaceholder();
 getImageBtn.addEventListener('click', fetchSpaceImages);

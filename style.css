@@ -87,6 +87,91 @@ button:hover {
   }
 }
 
+/* Controls: query input and count select */
+.filters input[type="text"],
+.filters select {
+  font-family: Arial, sans-serif;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  color: #333;
+}
+
+/* Make controls line up nicely */
+@media (min-width: 600px) {
+  .filters input[type="text"] {
+    min-width: 320px;
+  }
+  .filters select {
+    width: 140px;
+  }
+}
+
+/* Orbit / liftoff placeholder */
+.orbit-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #333;
+}
+
+.orbit-container {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin-bottom: 16px;
+}
+
+.orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px dashed rgba(0,0,0,0.08);
+}
+
+.planet {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  margin-left: -18px;
+  margin-top: -18px;
+  background: radial-gradient(circle at 30% 30%, #7fb3ff, #155b9a);
+  border-radius: 50%;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  z-index: 2;
+}
+
+.satellite {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  margin-top: -6px;
+  margin-left: 70px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  transform-origin: -70px center;
+  animation: orbit-rotate 4s linear infinite;
+}
+
+@keyframes orbit-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.liftoff-text {
+  font-size: 18px;
+  color: #444;
+  font-weight: bold;
+}
+
 /* Gallery flex container */
 .gallery {
   display: flex;
