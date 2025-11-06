@@ -123,4 +123,19 @@ async function fetchSpaceImages() {
 
 // Initialize UI and wire events
 showOrbitPlaceholder();
-getImageBtn.addEventListener('click', fetchSpaceImages);
+
+// Prevent default submit behavior and call fetch
+getImageBtn.addEventListener('click', (e) => {
+	e.preventDefault();
+	fetchSpaceImages();
+});
+
+// Allow pressing Enter in the search box to trigger a search without reloading
+if (queryInput) {
+	queryInput.addEventListener('keydown', (e) => {
+		if (e.key === 'Enter') {
+			e.preventDefault();
+			fetchSpaceImages();
+		}
+	});
+}
