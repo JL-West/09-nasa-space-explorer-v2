@@ -148,23 +148,14 @@ button:hover {
 
 .satellite {
   position: absolute;
-  width: 12px;
-  height: 12px;
-  background: #fff;
-  border-radius: 50%;
+  font-size: 26px; /* emoji size */
   top: 50%;
   left: 50%;
-  margin-top: -6px;
-  margin-left: 70px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  transform-origin: -70px center;
-  animation: orbit-rotate 4s linear infinite;
+  transform: translate(70px, -50%); /* place to the right on the orbit */
+  z-index: 3;
 }
 
-@keyframes orbit-rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
+/* removed continuous rotation to keep placeholder static */
 
 .liftoff-text {
   font-size: 18px;

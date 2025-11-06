@@ -83,11 +83,13 @@ async function fetchSpaceImages() {
 		return;
 	}
 
-	showLoading();
+		showLoading();
 
-	const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image`;
-	try {
-		const resp = await fetch(url);
+		const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image`;
+		// disable the button while we are fetching to avoid double requests or UI races
+		if (getImageBtn) getImageBtn.disabled = true;
+		try {
+			const resp = await fetch(url);
 		if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
 		const data = await resp.json();
 
@@ -102,23 +104,24 @@ async function fetchSpaceImages() {
 			if (images.length >= count) break;
 		}
 
-		if (images.length === 0) {
+			if (images.length === 0) {
+				gallery.innerHTML = `
+					<div class="placeholder">
+						<p>No images found for "${query}". Try a different search.</p>
+					</div>`;
+			} else {
+				renderImages(images);
+				setCache(cacheKey, images);
+			}
+		} catch (err) {
+			console.error('Fetch error', err);
 			gallery.innerHTML = `
 				<div class="placeholder">
-					<p>No images found for "${query}". Try a different search.</p>
+					<p>Error loading images: ${err.message}</p>
 				</div>`;
-			return;
+		} finally {
+			if (getImageBtn) getImageBtn.disabled = false;
 		}
-
-		renderImages(images);
-		setCache(cacheKey, images);
-	} catch (err) {
-		console.error('Fetch error', err);
-		gallery.innerHTML = `
-			<div class="placeholder">
-				<p>Error loading images: ${err.message}</p>
-			</div>`;
-	}
 }
 
 // Initialize UI and wire events
