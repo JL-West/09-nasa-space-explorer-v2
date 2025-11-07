@@ -85,4 +85,20 @@ cp config.sample.js config.js
 
 The app will load `config.js` (if present) before the main script and use those keys automatically. You can still edit keys at runtime via the settings UI if desired.
 
+### Helper script to create `config.js`
+
+If you prefer not to edit files by hand, a small helper script is provided to generate `config.js` from environment variables or by prompting you for input.
+
+From the project root run:
+
+```bash
+# interactive prompts
+./scripts/generate-config.sh
+
+# or provide keys via environment variables (non-interactive)
+NASA_API_KEY=your_nasa_key OMDB_API_KEY=your_omdb_key ./scripts/generate-config.sh
+```
+
+The script writes `config.js` and the file is ignored by git. Use this on your local machine only — never commit secrets.
+
 
