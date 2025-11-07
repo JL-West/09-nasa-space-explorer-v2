@@ -238,6 +238,8 @@ const nasaApiKeyInput = document.getElementById('nasaApiKey');
 const omdbApiKeyInput = document.getElementById('omdbApiKey');
 const saveKeysBtn = document.getElementById('saveKeysBtn');
 const clearKeysBtn = document.getElementById('clearKeysBtn');
+const settingsToggle = document.getElementById('settingsToggle');
+const settingsPanel = document.getElementById('settingsPanel');
 
 function setStatus(msg) {
 	if (statusEl) statusEl.textContent = msg;
@@ -343,6 +345,25 @@ try {
 	}
 } catch (e) {
 	// ignore if window.NASA_CONFIG is not present or other errors
+}
+
+// Settings panel toggle behavior: keep API inputs hidden by default
+if (settingsToggle && settingsPanel) {
+	settingsToggle.addEventListener('click', (e) => {
+		const isHidden = settingsPanel.hasAttribute('hidden');
+		if (isHidden) {
+			settingsPanel.removeAttribute('hidden');
+			settingsPanel.classList.add('open');
+			settingsToggle.setAttribute('aria-expanded', 'true');
+			// focus first input
+			const first = settingsPanel.querySelector('input');
+			if (first) first.focus();
+		} else {
+			settingsPanel.setAttribute('hidden', '');
+			settingsPanel.classList.remove('open');
+			settingsToggle.setAttribute('aria-expanded', 'false');
+		}
+	});
 }
 
 // Lightbox helpers

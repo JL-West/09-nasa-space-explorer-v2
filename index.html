@@ -24,13 +24,17 @@
         <option value="6" selected>6 images</option>
         <option value="9">9 images</option>
       </select>
-      <button id="getImageBtn" type="button">Fetch Space Images</button>
-      <button id="clearCacheBtn" type="button">Clear Cache</button>
-  <!-- API keys: runtime inputs (stored locally) -->
-  <input id="nasaApiKey" type="text" placeholder="A8tgVmkQzQwHej4dPOLKkh1sGw2GAFJtrGpQ4b8A" aria-label="NASA API Key" />
-  <input id="omdbApiKey" type="text" placeholder="b079e78c" aria-label="OMDb API Key" />
-  <button id="saveKeysBtn" type="button">Save API Keys</button>
-  <button id="clearKeysBtn" type="button">Clear API Keys</button>
+        <button id="getImageBtn" type="button">Fetch Space Images</button>
+        <button id="clearCacheBtn" type="button">Clear Cache</button>
+        <button id="settingsToggle" class="settings-toggle" aria-expanded="false" aria-controls="settingsPanel" aria-label="Show settings">⚙️</button>
+
+        <div id="settingsPanel" class="settings-panel" hidden>
+          <!-- API keys: runtime inputs (stored locally) -->
+          <input id="nasaApiKey" type="text" placeholder="NASA API Key (optional)" aria-label="NASA API Key" />
+          <input id="omdbApiKey" type="text" placeholder="OMDb API Key (optional)" aria-label="OMDb API Key" />
+          <button id="saveKeysBtn" type="button">Save API Keys</button>
+          <button id="clearKeysBtn" type="button">Clear API Keys</button>
+        </div>
     </div>
 
     <div id="gallery" class="gallery">
