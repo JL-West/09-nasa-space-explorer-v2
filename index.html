@@ -26,15 +26,6 @@
       </select>
         <button id="getImageBtn" type="button">Fetch Space Images</button>
         <button id="clearCacheBtn" type="button">Clear Cache</button>
-        <button id="settingsToggle" class="settings-toggle" aria-expanded="false" aria-controls="settingsPanel" aria-label="Show settings">⚙️</button>
-
-        <div id="settingsPanel" class="settings-panel" hidden>
-          <!-- API keys: runtime inputs (stored locally) -->
-          <input id="nasaApiKey" type="text" placeholder="NASA API Key (optional)" aria-label="NASA API Key" />
-          <input id="omdbApiKey" type="text" placeholder="OMDb API Key (optional)" aria-label="OMDb API Key" />
-          <button id="saveKeysBtn" type="button">Save API Keys</button>
-          <button id="clearKeysBtn" type="button">Clear API Keys</button>
-        </div>
     </div>
 
     <div id="gallery" class="gallery">
@@ -63,8 +54,6 @@
     <!-- Status region for accessibility -->
     <div id="status" class="sr-only" aria-live="polite"></div>
 
-    <!-- Fun fact area -->
-    <div id="funFact" class="fun-fact" aria-live="polite"></div>
   </div>
 
   <!-- Optional local config: copy config.sample.js -> config.js and fill keys (not committed) -->

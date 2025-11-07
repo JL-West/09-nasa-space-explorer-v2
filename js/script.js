@@ -9,6 +9,20 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 // APOD API key (replace 'DEMO_KEY' with your NASA API key when available)
 let APOD_API_KEY = 'DEMO_KEY';
 let OMDB_API_KEY = '';
+// DOM elements that we will assign once DOMContentLoaded fires
+let statusEl;
+let lightbox;
+let lightboxBackdrop;
+let lightboxClose;
+let lightboxMedia;
+let lightboxMeta;
+let funFactEl;
+let clearCacheBtn;
+
+function setStatus(msg) {
+	if (statusEl) statusEl.textContent = msg;
+	else console.log('STATUS:', msg);
+}
 
 function showOrbitPlaceholder() {
 	gallery.innerHTML = `
@@ -209,21 +223,21 @@ function svgVideoPlaceholder() {
 // Initialize UI and wire events after DOM is ready, with defensive checks
 document.addEventListener('DOMContentLoaded', () => {
 	try {
-		// resolve some frequently-used elements (safe to query after DOM ready)
-		const clearCacheBtn = document.getElementById('clearCacheBtn');
-		const statusElLocal = document.getElementById('status');
-		const lightboxLocal = document.getElementById('lightbox');
-		const lightboxBackdropLocal = document.getElementById('lightboxBackdrop');
-		const lightboxCloseLocal = document.getElementById('lightboxClose');
-		const lightboxMediaLocal = document.getElementById('lightboxMedia');
-		const lightboxMetaLocal = document.getElementById('lightboxMeta');
-		const funFactElLocal = document.getElementById('funFact');
-		const nasaApiKeyInput = document.getElementById('nasaApiKey');
-		const omdbApiKeyInput = document.getElementById('omdbApiKey');
-		const saveKeysBtn = document.getElementById('saveKeysBtn');
-		const clearKeysBtn = document.getElementById('clearKeysBtn');
-		const settingsToggleLocal = document.getElementById('settingsToggle');
-		const settingsPanelLocal = document.getElementById('settingsPanel');
+	// resolve frequently-used elements (assign to outer-scope vars)
+	clearCacheBtn = document.getElementById('clearCacheBtn');
+	statusEl = document.getElementById('status');
+	lightbox = document.getElementById('lightbox');
+	lightboxBackdrop = document.getElementById('lightboxBackdrop');
+	lightboxClose = document.getElementById('lightboxClose');
+	lightboxMedia = document.getElementById('lightboxMedia');
+	lightboxMeta = document.getElementById('lightboxMeta');
+	funFactEl = document.getElementById('funFact');
+	const nasaApiKeyInput = document.getElementById('nasaApiKey');
+	const omdbApiKeyInput = document.getElementById('omdbApiKey');
+	const saveKeysBtn = document.getElementById('saveKeysBtn');
+	const clearKeysBtn = document.getElementById('clearKeysBtn');
+	const settingsToggleLocal = document.getElementById('settingsToggle');
+	const settingsPanelLocal = document.getElementById('settingsPanel');
 
 		// small helper using resolved status element
 		function setStatusLocal(msg) {
@@ -264,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
 					removed++;
 				}
 			}
-			setStatusLocal(`Cleared ${removed} cached result(s).`);
+			setStatus(`Cleared ${removed} cached result(s).`);
 			showOrbitPlaceholder();
 		}
 		if (clearCacheBtn) {
@@ -311,9 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
 			} catch (e) { console.warn('Failed to clear API keys', e); setStatusLocal('Failed to clear API keys.'); }
 		}
 
-		if (saveKeysBtn) saveKeysBtn.addEventListener('click', (e) => { e.preventDefault(); saveApiKeysLocal(); });
-		if (clearKeysBtn) clearKeysBtn.addEventListener('click', (e) => { e.preventDefault(); clearApiKeysLocal(); });
-		loadApiKeysLocal();
+	if (saveKeysBtn) saveKeysBtn.addEventListener('click', (e) => { e.preventDefault(); saveApiKeysLocal(); });
+	if (clearKeysBtn) clearKeysBtn.addEventListener('click', (e) => { e.preventDefault(); clearApiKeysLocal(); });
+	loadApiKeysLocal();
 
 		// If user provides a local config.js that sets window.NASA_CONFIG, prefer those keys
 		try {
@@ -332,7 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			// ignore if window.NASA_CONFIG is not present or other errors
 		}
 
-		// Settings panel toggle behavior
+		// Settings panel toggle behavior (if present) — harmless if removed from DOM
 		if (settingsToggleLocal && settingsPanelLocal) {
 			settingsToggleLocal.addEventListener('click', (e) => {
 				const isHidden = settingsPanelLocal.hasAttribute('hidden');
@@ -349,6 +363,19 @@ document.addEventListener('DOMContentLoaded', () => {
 				}
 			});
 		}
+
+		// Wire lightbox close/backdrop events now that variables are assigned
+		if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+		if (lightboxBackdrop) lightboxBackdrop.addEventListener('click', closeLightbox);
+		// Escape key should close the lightbox
+		document.addEventListener('keydown', (e) => {
+			if ((e.key === 'Escape' || e.key === 'Esc') && lightbox && lightbox.getAttribute('aria-hidden') === 'false') {
+				closeLightbox();
+			}
+		});
+
+		// Show a fun fact once DOM is ready
+		showFunFact();
 
 	} catch (initErr) {
 		console.error('Initialization error:', initErr);
@@ -521,7 +548,6 @@ function showFunFact() {
 	const f = FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
 	funFactEl.textContent = `Fun space fact: ${f}`;
 }
-showFunFact();
 
 // Populate the date dropdown with dates from 1995-06-16 (first APOD) up to 2025-10-01 (newest first)
 // dateSelect is now a compact <input type="date"> and does not need population
