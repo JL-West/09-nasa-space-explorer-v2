@@ -6,6 +6,9 @@ const numSelect = document.getElementById('numSelect');
 const dateSelect = document.getElementById('dateSelect');
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+// APOD API key (replace 'DEMO_KEY' with your NASA API key when available)
+let APOD_API_KEY = 'DEMO_KEY';
+let OMDB_API_KEY = '';
 
 function showOrbitPlaceholder() {
 	gallery.innerHTML = `
@@ -161,8 +164,8 @@ async function fetchAPOD(date) {
 	if (getImageBtn) getImageBtn.disabled = true;
 
 	try {
-		// Using DEMO_KEY for demo purposes. For production, replace with your own API key.
-		const apodUrl = `https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=${encodeURIComponent(date)}`;
+	// Use configured APOD API key (replace APOD_API_KEY when you have your key)
+	const apodUrl = `https://api.nasa.gov/planetary/apod?api_key=${encodeURIComponent(APOD_API_KEY)}&date=${encodeURIComponent(date)}`;
 		const resp = await fetch(apodUrl);
 		if (!resp.ok) throw new Error(`APOD API error: ${resp.status}`);
 		const data = await resp.json();
@@ -231,6 +234,10 @@ const lightboxClose = document.getElementById('lightboxClose');
 const lightboxMedia = document.getElementById('lightboxMedia');
 const lightboxMeta = document.getElementById('lightboxMeta');
 const funFactEl = document.getElementById('funFact');
+const nasaApiKeyInput = document.getElementById('nasaApiKey');
+const omdbApiKeyInput = document.getElementById('omdbApiKey');
+const saveKeysBtn = document.getElementById('saveKeysBtn');
+const clearKeysBtn = document.getElementById('clearKeysBtn');
 
 function setStatus(msg) {
 	if (statusEl) statusEl.textContent = msg;
@@ -256,6 +263,69 @@ if (clearCacheBtn) {
 		clearCache();
 	});
 }
+
+// API key storage helpers
+function loadApiKeys() {
+	try {
+		const nas = localStorage.getItem('api_key_nasa');
+		const omb = localStorage.getItem('api_key_omdb');
+		if (nas) {
+			APOD_API_KEY = nas;
+			if (nasaApiKeyInput) nasaApiKeyInput.value = nas;
+		}
+		if (omb) {
+			OMDB_API_KEY = omb;
+			if (omdbApiKeyInput) omdbApiKeyInput.value = omb;
+		}
+	} catch (e) {
+		console.warn('Failed to load API keys', e);
+	}
+}
+
+function saveApiKeys() {
+	try {
+		const nas = (nasaApiKeyInput && nasaApiKeyInput.value.trim()) || '';
+		const omb = (omdbApiKeyInput && omdbApiKeyInput.value.trim()) || '';
+		if (nas) {
+			localStorage.setItem('api_key_nasa', nas);
+			APOD_API_KEY = nas;
+		} else {
+			localStorage.removeItem('api_key_nasa');
+			APOD_API_KEY = 'DEMO_KEY';
+		}
+		if (omb) {
+			localStorage.setItem('api_key_omdb', omb);
+			OMDB_API_KEY = omb;
+		} else {
+			localStorage.removeItem('api_key_omdb');
+			OMDB_API_KEY = '';
+		}
+		setStatus('API keys saved.');
+	} catch (e) {
+		console.warn('Failed to save API keys', e);
+		setStatus('Failed to save API keys.');
+	}
+}
+
+function clearApiKeys() {
+	try {
+		localStorage.removeItem('api_key_nasa');
+		localStorage.removeItem('api_key_omdb');
+		APOD_API_KEY = 'DEMO_KEY';
+		OMDB_API_KEY = '';
+		if (nasaApiKeyInput) nasaApiKeyInput.value = '';
+		if (omdbApiKeyInput) omdbApiKeyInput.value = '';
+		setStatus('Cleared stored API keys.');
+	} catch (e) {
+		console.warn('Failed to clear API keys', e);
+		setStatus('Failed to clear API keys.');
+	}
+}
+
+if (saveKeysBtn) saveKeysBtn.addEventListener('click', (e) => { e.preventDefault(); saveApiKeys(); });
+if (clearKeysBtn) clearKeysBtn.addEventListener('click', (e) => { e.preventDefault(); clearApiKeys(); });
+// load keys at startup
+loadApiKeys();
 
 // Lightbox helpers
 function openLightbox(item) {
@@ -382,19 +452,4 @@ function showFunFact() {
 showFunFact();
 
 // Populate the date dropdown with dates from 1995-06-16 (first APOD) up to 2025-10-01 (newest first)
-// Note: this will generate a large list (~30 years daily) — if you'd prefer a compact UI
-// we can switch to an <input type="date"> with max="2025-10-01" instead.
-if (dateSelect) {
-	const start = new Date('1995-06-16');
-	const end = new Date('2025-10-01');
-	for (let d = end; d >= start; d.setDate(d.getDate() - 1)) {
-		const yyyy = d.getFullYear();
-		const mm = String(d.getMonth() + 1).padStart(2, '0');
-		const dd = String(d.getDate()).padStart(2, '0');
-		const val = `${yyyy}-${mm}-${dd}`;
-		const opt = document.createElement('option');
-		opt.value = val;
-		opt.textContent = val;
-		dateSelect.appendChild(opt);
-	}
-}
+// dateSelect is now a compact <input type="date"> and does not need population

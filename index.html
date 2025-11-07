@@ -15,9 +15,7 @@
 
     <div class="filters">
       <label for="dateSelect" class="sr-only">Select date</label>
-      <select id="dateSelect" aria-label="Select a date (up to 2025-10-01)">
-        <option value="">Any date</option>
-      </select>
+      <input id="dateSelect" type="date" min="1995-06-16" max="2025-10-01" aria-label="Select a date (up to 2025-10-01)" />
       <input type="text" id="queryInput" placeholder="Search (e.g. nebula, mars, galaxy)" aria-label="Search term" />
       <select id="numSelect" aria-label="Number of images">
         <option value="3">3 images</option>
@@ -26,6 +24,11 @@
       </select>
       <button id="getImageBtn" type="button">Fetch Space Images</button>
       <button id="clearCacheBtn" type="button">Clear Cache</button>
+  <!-- API keys: runtime inputs (stored locally) -->
+  <input id="nasaApiKey" type="text" placeholder="A8tgVmkQzQwHej4dPOLKkh1sGw2GAFJtrGpQ4b8A" aria-label="NASA API Key" />
+  <input id="omdbApiKey" type="text" placeholder="b079e78c" aria-label="OMDb API Key" />
+  <button id="saveKeysBtn" type="button">Save API Keys</button>
+  <button id="clearKeysBtn" type="button">Clear API Keys</button>
     </div>
 
     <div id="gallery" class="gallery">
