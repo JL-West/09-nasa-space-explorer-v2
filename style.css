@@ -98,6 +98,33 @@ button:hover {
   color: #333;
 }
 
+/* Settings toggle and panel (hidden by default) */
+.settings-toggle {
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.settings-panel {
+  display: none;
+  gap: 8px;
+  align-items: center;
+}
+.settings-panel[hidden] {
+  display: none !important;
+}
+.settings-panel.open {
+  display: flex;
+}
+
+@media (min-width:600px) {
+  .filters {
+    align-items: center;
+  }
+}
+
 /* Make controls line up nicely */
 @media (min-width: 600px) {
   .filters input[type="text"] {
