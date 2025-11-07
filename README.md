@@ -65,4 +65,10 @@ python3 -m http.server 8000
 
 The app caches search results in `localStorage` using keys prefixed with `nasa_cache_` and a TTL of 6 hours. Use the "Clear Cache" button in the UI to remove cached search results immediately.
 
+## APOD (date lookup)
+
+When you pick an exact date the app uses NASA's APOD (Astronomy Picture of the Day) API to fetch the item published on that date. The app currently uses the public `DEMO_KEY` for the APOD API — this key is rate-limited. For reliable or high-volume use, request your own API key from https://api.nasa.gov and replace the `DEMO_KEY` string in `js/script.js` with your key.
+
+APOD results are cached separately with keys of the form `nasa_cache_apod_YYYY-MM-DD`.
+
 

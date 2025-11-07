@@ -88,9 +88,15 @@ async function fetchSpaceImages() {
 		return;
 	}
 
-		showLoading();
+	// If a specific APOD date was chosen, use the APOD API to get the exact daily image/video
+	if (selectedDate) {
+		await fetchAPOD(selectedDate);
+		return;
+	}
 
-		const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image`;
+	showLoading();
+
+	const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image`;
 		// disable the button while we are fetching to avoid double requests or UI races
 		if (getImageBtn) getImageBtn.disabled = true;
 		try {
@@ -140,6 +146,61 @@ async function fetchSpaceImages() {
 		} finally {
 			if (getImageBtn) getImageBtn.disabled = false;
 		}
+}
+
+// Fetch the APOD (Astronomy Picture of the Day) for an exact date using NASA's APOD API
+async function fetchAPOD(date) {
+	const cacheKey = `nasa_cache_apod_${date}`;
+	const cached = getCache(cacheKey);
+	if (cached) {
+		renderImages(cached);
+		return;
+	}
+
+	showLoading();
+	if (getImageBtn) getImageBtn.disabled = true;
+
+	try {
+		// Using DEMO_KEY for demo purposes. For production, replace with your own API key.
+		const apodUrl = `https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=${encodeURIComponent(date)}`;
+		const resp = await fetch(apodUrl);
+		if (!resp.ok) throw new Error(`APOD API error: ${resp.status}`);
+		const data = await resp.json();
+
+		// Build a gallery-friendly object. For videos we try to use a thumbnail for the grid.
+		const isVideo = data.media_type === 'video';
+		const thumb = data.thumbnail_url || (isVideo ? null : data.hdurl || data.url);
+		const hrefForGrid = thumb || (isVideo ? svgVideoPlaceholder() : (data.hdurl || data.url));
+
+		const item = {
+			href: hrefForGrid,
+			title: data.title || '',
+			nasa_id: data.date || '', // APOD doesn't use nasa_id; use date as identifier
+			date_created: data.date || '',
+			photographer: data.copyright || '',
+			center: '',
+			description: data.explanation || '',
+			media_type: data.media_type || 'image',
+			// full content url (image or embed/video link)
+			content_url: data.url || data.hdurl || ''
+		};
+
+		// render and cache as an array for compatibility with renderImages
+		const arr = [item];
+		renderImages(arr);
+		setCache(cacheKey, arr);
+	} catch (err) {
+		console.error('APOD fetch error', err);
+		gallery.innerHTML = `\n            <div class="placeholder">\n                <p>Error loading APOD for ${date}: ${err.message}</p>\n            </div>`;
+	} finally {
+		if (getImageBtn) getImageBtn.disabled = false;
+	}
+}
+
+// Small SVG placeholder for videos when no thumbnail is available
+function svgVideoPlaceholder() {
+	const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='240'><rect width='100%' height='100%' fill='#111' /><text x='50%' y='50%' fill='#fff' font-size='20' text-anchor='middle' dy='.3em'>VIDEO</text></svg>`;
+	return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
 // Initialize UI and wire events
