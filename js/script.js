@@ -327,6 +327,24 @@ if (clearKeysBtn) clearKeysBtn.addEventListener('click', (e) => { e.preventDefau
 // load keys at startup
 loadApiKeys();
 
+// If user provides a local config.js that sets window.NASA_CONFIG, prefer those keys
+try {
+	if (window && window.NASA_CONFIG) {
+		if (window.NASA_CONFIG.APOD_API_KEY) {
+			APOD_API_KEY = window.NASA_CONFIG.APOD_API_KEY;
+			// reflect into input if present (optional)
+			if (nasaApiKeyInput) nasaApiKeyInput.value = APOD_API_KEY;
+		}
+		if (window.NASA_CONFIG.OMDB_API_KEY) {
+			OMDB_API_KEY = window.NASA_CONFIG.OMDB_API_KEY;
+			if (omdbApiKeyInput) omdbApiKeyInput.value = OMDB_API_KEY;
+		}
+		setStatus('Loaded API keys from local config.');
+	}
+} catch (e) {
+	// ignore if window.NASA_CONFIG is not present or other errors
+}
+
 // Lightbox helpers
 function openLightbox(item) {
 	if (!lightbox) return;
@@ -384,6 +402,32 @@ function openLightbox(item) {
 					metaHTML += `<p><a href="${detailsUrl}" target="_blank" rel="noopener">View on NASA Images</a></p>`;
 				}
 				lightboxMeta.innerHTML = metaHTML;
+
+				// If OMDb key is provided and this appears to be a video (or APOD video), try to fetch movie metadata
+				if (OMDB_API_KEY && OMDB_API_KEY.length && item.title && (item.media_type === 'video' || (item.content_url && item.content_url.includes('youtube')) || (item.href && item.href.includes('youtube')))) {
+					try {
+						const omdbUrl = `https://www.omdbapi.com/?apikey=${encodeURIComponent(OMDB_API_KEY)}&t=${encodeURIComponent(item.title)}`;
+						const ombResp = await fetch(omdbUrl);
+						if (ombResp.ok) {
+							const ombData = await ombResp.json();
+							if (ombData && ombData.Response === 'True') {
+								let omdbHtml = '<div class="omdb-info">';
+								if (ombData.Poster && ombData.Poster !== 'N/A') {
+									omdbHtml += `<img src="${ombData.Poster}" alt="${ombData.Title} poster" style="max-width:120px;float:left;margin-right:8px;"/>`;
+								}
+								omdbHtml += `<div style="overflow:hidden;"><strong>${ombData.Title}</strong> (${ombData.Year})<br/>${ombData.Genre || ''}<br/>Rated: ${ombData.Rated || 'N/A'}`;
+								if (ombData.imdbID) {
+									omdbHtml += `<br/><a href="https://www.imdb.com/title/${ombData.imdbID}" target="_blank" rel="noopener">View on IMDb</a>`;
+								}
+								omdbHtml += `</div><div style="clear:both"></div></div>`;
+								lightboxMeta.innerHTML += omdbHtml;
+								setStatus('Loaded movie info from OMDb.');
+							}
+						}
+					} catch (e) {
+						console.warn('OMDb fetch failed', e);
+					}
+				}
 	})();
 }
 
