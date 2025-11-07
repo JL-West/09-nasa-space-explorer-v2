@@ -71,4 +71,18 @@ When you pick an exact date the app uses NASA's APOD (Astronomy Picture of the D
 
 APOD results are cached separately with keys of the form `nasa_cache_apod_YYYY-MM-DD`.
 
+## Local config file (recommended)
+
+If you don't want API keys visible on the page UI, create a local `config.js` next to the site files.
+A sample file is included as `config.sample.js` — copy it and fill your keys:
+
+```bash
+cp config.sample.js config.js
+# edit config.js and place your keys
+```
+
+`config.js` should set `window.NASA_CONFIG` with `APOD_API_KEY` and `OMDB_API_KEY`. The project already includes `config.js` in `.gitignore` so it won't be committed.
+
+The app will load `config.js` (if present) before the main script and use those keys automatically. You can still edit keys at runtime via the settings UI if desired.
+
 
