@@ -206,165 +206,172 @@ function svgVideoPlaceholder() {
 	return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-// Initialize UI and wire events
-showOrbitPlaceholder();
+// Initialize UI and wire events after DOM is ready, with defensive checks
+document.addEventListener('DOMContentLoaded', () => {
+	try {
+		// resolve some frequently-used elements (safe to query after DOM ready)
+		const clearCacheBtn = document.getElementById('clearCacheBtn');
+		const statusElLocal = document.getElementById('status');
+		const lightboxLocal = document.getElementById('lightbox');
+		const lightboxBackdropLocal = document.getElementById('lightboxBackdrop');
+		const lightboxCloseLocal = document.getElementById('lightboxClose');
+		const lightboxMediaLocal = document.getElementById('lightboxMedia');
+		const lightboxMetaLocal = document.getElementById('lightboxMeta');
+		const funFactElLocal = document.getElementById('funFact');
+		const nasaApiKeyInput = document.getElementById('nasaApiKey');
+		const omdbApiKeyInput = document.getElementById('omdbApiKey');
+		const saveKeysBtn = document.getElementById('saveKeysBtn');
+		const clearKeysBtn = document.getElementById('clearKeysBtn');
+		const settingsToggleLocal = document.getElementById('settingsToggle');
+		const settingsPanelLocal = document.getElementById('settingsPanel');
 
-// Prevent default submit behavior and call fetch
-getImageBtn.addEventListener('click', (e) => {
-	e.preventDefault();
-	fetchSpaceImages();
+		// small helper using resolved status element
+		function setStatusLocal(msg) {
+			if (statusElLocal) statusElLocal.textContent = msg;
+			else console.log('STATUS:', msg);
+		}
+
+		// show initial placeholder
+		showOrbitPlaceholder();
+
+		// wire primary fetch button
+		if (getImageBtn) {
+			getImageBtn.addEventListener('click', (e) => {
+				e.preventDefault();
+				try { fetchSpaceImages(); } catch (err) { console.error('Fetch error', err); setStatusLocal('Error starting fetch.'); }
+			});
+		} else {
+			console.warn('getImageBtn not found');
+		}
+
+		// Allow pressing Enter in the search box
+		if (queryInput) {
+			queryInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					try { fetchSpaceImages(); } catch (err) { console.error('Fetch on Enter failed', err); setStatusLocal('Error starting fetch.'); }
+				}
+			});
+		}
+
+		// Clear cache wiring
+		function clearCacheLocal() {
+			const keys = Object.keys(localStorage);
+			let removed = 0;
+			for (const k of keys) {
+				if (k && k.startsWith('nasa_cache_')) {
+					localStorage.removeItem(k);
+					removed++;
+				}
+			}
+			setStatusLocal(`Cleared ${removed} cached result(s).`);
+			showOrbitPlaceholder();
+		}
+		if (clearCacheBtn) {
+			clearCacheBtn.addEventListener('click', (e) => { e.preventDefault(); clearCacheLocal(); });
+		}
+
+		// API key helpers reuse outer-scope functions but reflect to inputs
+		function loadApiKeysLocal() {
+			try {
+				const nas = localStorage.getItem('api_key_nasa');
+				const omb = localStorage.getItem('api_key_omdb');
+				if (nas) {
+					APOD_API_KEY = nas;
+					if (nasaApiKeyInput) nasaApiKeyInput.value = nas;
+				}
+				if (omb) {
+					OMDB_API_KEY = omb;
+					if (omdbApiKeyInput) omdbApiKeyInput.value = omb;
+				}
+			} catch (e) {
+				console.warn('Failed to load API keys', e);
+			}
+		}
+
+		function saveApiKeysLocal() {
+			try {
+				const nas = (nasaApiKeyInput && nasaApiKeyInput.value.trim()) || '';
+				const omb = (omdbApiKeyInput && omdbApiKeyInput.value.trim()) || '';
+				if (nas) { localStorage.setItem('api_key_nasa', nas); APOD_API_KEY = nas; } else { localStorage.removeItem('api_key_nasa'); APOD_API_KEY = 'DEMO_KEY'; }
+				if (omb) { localStorage.setItem('api_key_omdb', omb); OMDB_API_KEY = omb; } else { localStorage.removeItem('api_key_omdb'); OMDB_API_KEY = ''; }
+				setStatusLocal('API keys saved.');
+			} catch (e) { console.warn('Failed to save API keys', e); setStatusLocal('Failed to save API keys.'); }
+		}
+
+		function clearApiKeysLocal() {
+			try {
+				localStorage.removeItem('api_key_nasa');
+				localStorage.removeItem('api_key_omdb');
+				APOD_API_KEY = 'DEMO_KEY';
+				OMDB_API_KEY = '';
+				if (nasaApiKeyInput) nasaApiKeyInput.value = '';
+				if (omdbApiKeyInput) omdbApiKeyInput.value = '';
+				setStatusLocal('Cleared stored API keys.');
+			} catch (e) { console.warn('Failed to clear API keys', e); setStatusLocal('Failed to clear API keys.'); }
+		}
+
+		if (saveKeysBtn) saveKeysBtn.addEventListener('click', (e) => { e.preventDefault(); saveApiKeysLocal(); });
+		if (clearKeysBtn) clearKeysBtn.addEventListener('click', (e) => { e.preventDefault(); clearApiKeysLocal(); });
+		loadApiKeysLocal();
+
+		// If user provides a local config.js that sets window.NASA_CONFIG, prefer those keys
+		try {
+			if (window && window.NASA_CONFIG) {
+				if (window.NASA_CONFIG.APOD_API_KEY) {
+					APOD_API_KEY = window.NASA_CONFIG.APOD_API_KEY;
+					if (nasaApiKeyInput) nasaApiKeyInput.value = APOD_API_KEY;
+				}
+				if (window.NASA_CONFIG.OMDB_API_KEY) {
+					OMDB_API_KEY = window.NASA_CONFIG.OMDB_API_KEY;
+					if (omdbApiKeyInput) omdbApiKeyInput.value = OMDB_API_KEY;
+				}
+				setStatusLocal('Loaded API keys from local config.');
+			}
+		} catch (e) {
+			// ignore if window.NASA_CONFIG is not present or other errors
+		}
+
+		// Settings panel toggle behavior
+		if (settingsToggleLocal && settingsPanelLocal) {
+			settingsToggleLocal.addEventListener('click', (e) => {
+				const isHidden = settingsPanelLocal.hasAttribute('hidden');
+				if (isHidden) {
+					settingsPanelLocal.removeAttribute('hidden');
+					settingsPanelLocal.classList.add('open');
+					settingsToggleLocal.setAttribute('aria-expanded', 'true');
+					const first = settingsPanelLocal.querySelector('input');
+					if (first) first.focus();
+				} else {
+					settingsPanelLocal.setAttribute('hidden', '');
+					settingsPanelLocal.classList.remove('open');
+					settingsToggleLocal.setAttribute('aria-expanded', 'false');
+				}
+			});
+		}
+
+	} catch (initErr) {
+		console.error('Initialization error:', initErr);
+		try { const s = document.getElementById('status'); if (s) s.textContent = 'Initialization error, check console.'; } catch (e) {}
+	}
 });
 
-// Allow pressing Enter in the search box to trigger a search without reloading
-if (queryInput) {
-	queryInput.addEventListener('keydown', (e) => {
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			fetchSpaceImages();
-		}
-	});
-}
-
-// Clear cache button
-const clearCacheBtn = document.getElementById('clearCacheBtn');
-const statusEl = document.getElementById('status');
-const lightbox = document.getElementById('lightbox');
-const lightboxBackdrop = document.getElementById('lightboxBackdrop');
-const lightboxClose = document.getElementById('lightboxClose');
-const lightboxMedia = document.getElementById('lightboxMedia');
-const lightboxMeta = document.getElementById('lightboxMeta');
-const funFactEl = document.getElementById('funFact');
-const nasaApiKeyInput = document.getElementById('nasaApiKey');
-const omdbApiKeyInput = document.getElementById('omdbApiKey');
-const saveKeysBtn = document.getElementById('saveKeysBtn');
-const clearKeysBtn = document.getElementById('clearKeysBtn');
-const settingsToggle = document.getElementById('settingsToggle');
-const settingsPanel = document.getElementById('settingsPanel');
-
-function setStatus(msg) {
-	if (statusEl) statusEl.textContent = msg;
-}
-
-function clearCache() {
-	const keys = Object.keys(localStorage);
-	let removed = 0;
-	for (const k of keys) {
-		if (k && k.startsWith('nasa_cache_')) {
-			localStorage.removeItem(k);
-			removed++;
-		}
-	}
-	setStatus(`Cleared ${removed} cached result(s).`);
-	// show placeholder after clearing
-	showOrbitPlaceholder();
-}
-
-if (clearCacheBtn) {
-	clearCacheBtn.addEventListener('click', (e) => {
-		e.preventDefault();
-		clearCache();
-	});
-}
-
-// API key storage helpers
-function loadApiKeys() {
+// Global error reporting to the status area to help debug problems in the browser
+window.addEventListener('error', (ev) => {
 	try {
-		const nas = localStorage.getItem('api_key_nasa');
-		const omb = localStorage.getItem('api_key_omdb');
-		if (nas) {
-			APOD_API_KEY = nas;
-			if (nasaApiKeyInput) nasaApiKeyInput.value = nas;
-		}
-		if (omb) {
-			OMDB_API_KEY = omb;
-			if (omdbApiKeyInput) omdbApiKeyInput.value = omb;
-		}
-	} catch (e) {
-		console.warn('Failed to load API keys', e);
-	}
-}
-
-function saveApiKeys() {
+		const s = document.getElementById('status');
+		if (s) s.textContent = `JS error: ${ev.message}`;
+	} catch (e) {}
+	// keep the error in the console as well
+	console.error('Global error', ev.error || ev.message || ev);
+});
+window.addEventListener('unhandledrejection', (ev) => {
 	try {
-		const nas = (nasaApiKeyInput && nasaApiKeyInput.value.trim()) || '';
-		const omb = (omdbApiKeyInput && omdbApiKeyInput.value.trim()) || '';
-		if (nas) {
-			localStorage.setItem('api_key_nasa', nas);
-			APOD_API_KEY = nas;
-		} else {
-			localStorage.removeItem('api_key_nasa');
-			APOD_API_KEY = 'DEMO_KEY';
-		}
-		if (omb) {
-			localStorage.setItem('api_key_omdb', omb);
-			OMDB_API_KEY = omb;
-		} else {
-			localStorage.removeItem('api_key_omdb');
-			OMDB_API_KEY = '';
-		}
-		setStatus('API keys saved.');
-	} catch (e) {
-		console.warn('Failed to save API keys', e);
-		setStatus('Failed to save API keys.');
-	}
-}
-
-function clearApiKeys() {
-	try {
-		localStorage.removeItem('api_key_nasa');
-		localStorage.removeItem('api_key_omdb');
-		APOD_API_KEY = 'DEMO_KEY';
-		OMDB_API_KEY = '';
-		if (nasaApiKeyInput) nasaApiKeyInput.value = '';
-		if (omdbApiKeyInput) omdbApiKeyInput.value = '';
-		setStatus('Cleared stored API keys.');
-	} catch (e) {
-		console.warn('Failed to clear API keys', e);
-		setStatus('Failed to clear API keys.');
-	}
-}
-
-if (saveKeysBtn) saveKeysBtn.addEventListener('click', (e) => { e.preventDefault(); saveApiKeys(); });
-if (clearKeysBtn) clearKeysBtn.addEventListener('click', (e) => { e.preventDefault(); clearApiKeys(); });
-// load keys at startup
-loadApiKeys();
-
-// If user provides a local config.js that sets window.NASA_CONFIG, prefer those keys
-try {
-	if (window && window.NASA_CONFIG) {
-		if (window.NASA_CONFIG.APOD_API_KEY) {
-			APOD_API_KEY = window.NASA_CONFIG.APOD_API_KEY;
-			// reflect into input if present (optional)
-			if (nasaApiKeyInput) nasaApiKeyInput.value = APOD_API_KEY;
-		}
-		if (window.NASA_CONFIG.OMDB_API_KEY) {
-			OMDB_API_KEY = window.NASA_CONFIG.OMDB_API_KEY;
-			if (omdbApiKeyInput) omdbApiKeyInput.value = OMDB_API_KEY;
-		}
-		setStatus('Loaded API keys from local config.');
-	}
-} catch (e) {
-	// ignore if window.NASA_CONFIG is not present or other errors
-}
-
-// Settings panel toggle behavior: keep API inputs hidden by default
-if (settingsToggle && settingsPanel) {
-	settingsToggle.addEventListener('click', (e) => {
-		const isHidden = settingsPanel.hasAttribute('hidden');
-		if (isHidden) {
-			settingsPanel.removeAttribute('hidden');
-			settingsPanel.classList.add('open');
-			settingsToggle.setAttribute('aria-expanded', 'true');
-			// focus first input
-			const first = settingsPanel.querySelector('input');
-			if (first) first.focus();
-		} else {
-			settingsPanel.setAttribute('hidden', '');
-			settingsPanel.classList.remove('open');
-			settingsToggle.setAttribute('aria-expanded', 'false');
-		}
-	});
-}
+		const s = document.getElementById('status');
+		if (s) s.textContent = `Unhandled promise rejection: ${ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason)}`;
+	} catch (e) {}
+	console.error('Unhandled rejection', ev);
+});
 
 // Lightbox helpers
 function openLightbox(item) {
