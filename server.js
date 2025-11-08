@@ -1,0 +1,195 @@
+#!/usr/bin/env node
+// Simple Express server that provides an /apod-proxy route.
+// Flow for a requested date (YYYY-MM-DD):
+// 1) Try the official NASA APOD API
+// 2) If that fails, try scraping the apod.nasa.gov page for that date
+// 3) If still not found, ask the Wayback Machine for an archived copy and scrape that
+// Responses are cached in-memory for a TTL to avoid rate limits.
+
+const express = require('express');
+const axios = require('axios');
+const cheerio = require('cheerio');
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+app.use(cors());
+
+const PORT = process.env.PORT || 8000;
+const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
+
+// Simple in-memory cache: { key: { expires: ms, data: any } }
+const cache = new Map();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function cacheGet(key) {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expires) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function cacheSet(key, data, ttl = CACHE_TTL_MS) {
+  cache.set(key, { data, expires: Date.now() + ttl });
+}
+
+function dateToApodPage(dateStr) {
+  // dateStr is YYYY-MM-DD -> apYYMMDD.html (two-digit year)
+  const [y, m, d] = dateStr.split('-');
+  const yy = y.slice(-2);
+  return `https://apod.nasa.gov/apod/ap${yy}${m}${d}.html`;
+}
+
+async function fetchApodApi(date) {
+  try {
+    const url = `https://api.nasa.gov/planetary/apod?date=${date}&api_key=${NASA_API_KEY}`;
+    const res = await axios.get(url, { timeout: 15_000 });
+    if (res.status === 200 && res.data) {
+      return { source: 'apod-api', raw: res.data };
+    }
+  } catch (err) {
+    // fallthrough
+  }
+  return null;
+}
+
+async function scrapeApodPage(pageUrl) {
+  try {
+    const res = await axios.get(pageUrl, { timeout: 15000, responseType: 'text' });
+    if (res.status !== 200 || !res.data) return null;
+    const $ = cheerio.load(res.data);
+
+    // Title: use <title> or the first <b> in the center
+    const title = $('title').first().text().trim() || $('b').first().text().trim();
+
+    // Try to find the main image or video
+    // Images are often the first <img> or wrapped in <a href="image...">
+    let src = null;
+
+    // First check for an <a> that links to images (common pattern)
+    const aWithImage = $('a').filter((i, el) => {
+      const href = $(el).attr('href') || '';
+      return /image|apod|jpg|jpeg|png|gif|mov|mp4/i.test(href);
+    }).first();
+
+    if (aWithImage && aWithImage.attr('href')) {
+      src = aWithImage.attr('href');
+    }
+
+    if (!src) {
+      const img = $('img').first();
+      if (img && img.attr('src')) src = img.attr('src');
+    }
+
+    if (!src) return null;
+
+    // Make absolute URL
+    const absolute = new URL(src, 'https://apod.nasa.gov/apod/').href;
+
+    // Explanation text: gather paragraphs after the <b> title block
+    const explanation = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 2000);
+
+    return {
+      source: 'apod-scrape',
+      raw: {
+        url: absolute,
+        title: title || null,
+        explanation: explanation || null,
+      },
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
+async function fetchWaybackAndScrape(originalPage) {
+  try {
+    const availUrl = `http://archive.org/wayback/available?url=${encodeURIComponent(originalPage)}`;
+    const availRes = await axios.get(availUrl, { timeout: 10000 });
+    if (availRes.status !== 200 || !availRes.data) return null;
+    const snapshots = availRes.data.archived_snapshots;
+    if (!snapshots || !snapshots.closest || !snapshots.closest.available) return null;
+    const snapshotUrl = snapshots.closest.url;
+    // Fetch snapshot and scrape
+    return await scrapeApodPage(snapshotUrl);
+  } catch (err) {
+    return null;
+  }
+}
+
+app.get('/apod-proxy', async (req, res) => {
+  const date = req.query.date;
+  if (!date || typeof date !== 'string') {
+    return res.status(400).json({ error: 'Missing required `date` query parameter (YYYY-MM-DD).' });
+  }
+
+  // Basic validation YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: 'Date must be in YYYY-MM-DD format.' });
+  }
+
+  // Check cache
+  const cacheKey = `apod:${date}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return res.json({ ...cached, cached: true });
+
+  // 1) Try APOD API
+  const fromApi = await fetchApodApi(date);
+  if (fromApi && fromApi.raw && (fromApi.raw.url || fromApi.raw.hdurl)) {
+    const out = {
+      date,
+      title: fromApi.raw.title || null,
+      explanation: fromApi.raw.explanation || null,
+      media_type: fromApi.raw.media_type || 'image',
+      url: fromApi.raw.url || fromApi.raw.hdurl || null,
+      hdurl: fromApi.raw.hdurl || null,
+      source: 'apod-api',
+    };
+    cacheSet(cacheKey, out);
+    return res.json(out);
+  }
+
+  // 2) Try scraping the official APOD page
+  const apodPage = dateToApodPage(date);
+  const scraped = await scrapeApodPage(apodPage);
+  if (scraped && scraped.raw && scraped.raw.url) {
+    const out = {
+      date,
+      title: scraped.raw.title || null,
+      explanation: scraped.raw.explanation || null,
+      media_type: 'image',
+      url: scraped.raw.url,
+      source: 'apod-scrape',
+    };
+    cacheSet(cacheKey, out);
+    return res.json(out);
+  }
+
+  // 3) Wayback Machine fallback
+  const wayback = await fetchWaybackAndScrape(apodPage);
+  if (wayback && wayback.raw && wayback.raw.url) {
+    const out = {
+      date,
+      title: wayback.raw.title || null,
+      explanation: wayback.raw.explanation || null,
+      media_type: 'image',
+      url: wayback.raw.url,
+      source: 'apod-wayback',
+    };
+    cacheSet(cacheKey, out);
+    return res.json(out);
+  }
+
+  return res.status(404).json({ error: `No APOD found for ${date}` });
+});
+
+// Serve static files from the project root so index.html works when visiting the server
+app.use(express.static(path.join(__dirname)));
+
+app.listen(PORT, () => {
+  // eslint-disable-next-line no-console
+  console.log(`APOD proxy server listening on http://localhost:${PORT}`);
+});
