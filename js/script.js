@@ -1,345 +1,616 @@
-// Single-file client script: fetch NASA images, show in a gallery, lightbox with focus trap,
-// small debug overlay (Ctrl/Cmd+D), and simple localStorage caching.
-// Single-file client script: fetch NASA images, show in a gallery, lightbox with focus trap,
-// small debug overlay (Ctrl/Cmd+D), and simple localStorage caching.
+/*
+  Beginner-friendly JS for NASA Space Explorer
+  - Uses const/let and template literals
+  - Adds comments to explain each part
+  - Reads API keys from window.NASA_CONFIG (config.js) or localStorage fallback
+  - Uses /apod-proxy for APOD date lookups (server-side proxy)
+  - Uses images-api.nasa.gov for free-text searches
+  - Caches results in localStorage with TTL
+  - Implements an accessible lightbox with focus-trap
+  - Adds a fun fact at the top and a small debug overlay (Ctrl/Cmd+D)
+*/
 
-const getImageBtn = document.getElementById('getImageBtn');
-const gallery = document.getElementById('gallery');
-const queryInput = document.getElementById('queryInput');
-const numSelect = document.getElementById('numSelect');
-const dateSelect = document.getElementById('dateSelect');
+(() => {
+  // Config / constants
+  const CACHE_PREFIX = 'nasa_cache_';
+  const CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours for cached search results
+  const APOD_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours for APOD results
+  const IMAGES_API_BASE = 'https://images-api.nasa.gov';
+  const APOD_PROXY_PATH = '/apod-proxy'; // server endpoint (server.js)
+  const OMDB_BASE = 'https://www.omdbapi.com/';
 
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-let APOD_API_KEY = 'DEMO_KEY';
-let OMDB_API_KEY = '';
+  // Helpful DOM selectors (will be assigned on DOMContentLoaded)
+  let getImageBtn;
+  let clearCacheBtn;
+  let queryInput;
+  let numSelect;
+  let dateSelect;
+  let gallery;
+  let statusEl;
+  let lightbox;
+  let lightboxBackdrop;
+  let lightboxClose;
+  let lightboxMedia;
+  let lightboxMeta;
+  let funFactEl;
 
-// DOM refs that we resolve after DOMContentLoaded
-let statusEl = null;
-let lightbox = null;
-let lightboxBackdrop = null;
-let lightboxClose = null;
-let lightboxMedia = null;
-let lightboxMeta = null;
-let funFactEl = null;
-let clearCacheBtn = null;
+  // Lightbox focus tracking
+  let lastFocusedBeforeLightbox = null;
 
-function setStatus(msg) {
-  if (statusEl) statusEl.textContent = msg;
-  else console.log('STATUS:', msg);
-}
+  // Read keys from config.js (window.NASA_CONFIG) or localStorage fallback
+  function getApiKeys() {
+    const cfg = window.NASA_CONFIG || {};
+    const apodKey = cfg.APOD_API_KEY || localStorage.getItem('api_key_nasa') || 'DEMO_KEY';
+    const omdbKey = cfg.OMDB_API_KEY || localStorage.getItem('api_key_omdb') || '';
+    return { apodKey, omdbKey };
+  }
 
-function showOrbitPlaceholder() {
-  gallery.innerHTML = `<div class="placeholder orbit-placeholder"><div class="orbit-container" aria-hidden="true"><div class="orbit"></div><div class="planet"></div><div class="satellite">🚀</div></div><p class="liftoff-text">Preparing For Liftoff...</p></div>`;
-}
+  // Simple status helper (updates aria-live region)
+  function setStatus(message) {
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    // also console log for debugging
+    console.log('[status]', message);
+  }
 
-function showLoading() {
-  gallery.innerHTML = `<div class="placeholder"><div class="placeholder-icon">🔄</div><p>Loading images…</p></div>`;
-}
-
-function getCache(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed.ts || !parsed.data) return null;
-    if (Date.now() - parsed.ts > CACHE_TTL_MS) {
-      localStorage.removeItem(key);
+  // LocalStorage cache helpers
+  function cacheKey(key) {
+    return `${CACHE_PREFIX}${key}`;
+  }
+  function saveCache(key, value) {
+    const payload = { ts: Date.now(), value };
+    try {
+      localStorage.setItem(cacheKey(key), JSON.stringify(payload));
+    } catch (e) {
+      // ignore storage errors
+      console.warn('Could not save cache', e);
+    }
+  }
+  function loadCache(key, ttl = CACHE_TTL_MS) {
+    try {
+      const raw = localStorage.getItem(cacheKey(key));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed.ts || !parsed.value) return null;
+      if (Date.now() - parsed.ts > ttl) {
+        localStorage.removeItem(cacheKey(key));
+        return null;
+      }
+      return parsed.value;
+    } catch (e) {
       return null;
     }
-    return parsed.data;
-  } catch (e) {
-    console.warn('Cache parse error', e);
-    return null;
   }
-}
-
-function setCache(key, data) {
-  try {
-    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
-  } catch (e) {
-    console.warn('Failed to set cache', e);
-  }
-}
-
-function svgVideoPlaceholder() {
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='240'><rect width='100%' height='100%' fill='#111' /><text x='50%' y='50%' fill='#fff' font-size='20' text-anchor='middle' dy='.3em'>VIDEO</text></svg>`;
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
-
-async function fetchSpaceImages() {
-  const rawQuery = (queryInput && queryInput.value || '').trim();
-  const queryBase = rawQuery.length ? rawQuery : 'space';
-  const selectedDate = (dateSelect && dateSelect.value) ? dateSelect.value : '';
-  const query = selectedDate ? `${queryBase} ${selectedDate}` : queryBase;
-  const count = parseInt(numSelect && numSelect.value, 10) || 6;
-
-  const cacheKey = `nasa_cache_${(queryBase + (selectedDate ? `_${selectedDate}` : '')).toLowerCase()}_${count}`;
-  const cached = getCache(cacheKey);
-  if (cached && Array.isArray(cached) && cached.length) {
-    renderImages(cached);
-    return;
+  function clearAllCache() {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith(CACHE_PREFIX)) localStorage.removeItem(k);
+    });
   }
 
-  if (selectedDate) {
-    await fetchAPOD(selectedDate);
-    return;
+  // Fun facts (kept short for beginners)
+  const FUN_FACTS = [
+    'The Hubble Space Telescope was launched in 1990 and revolutionized astronomy.',
+    'Saturn is the least dense planet — it would float in water!',
+    'The Moon is moving away from Earth about 3.8 cm per year.',
+    'A day on Venus is longer than a year on Venus.',
+    'Neutron stars can spin hundreds of times per second.',
+    'The footprints on the Moon will likely remain for millions of years — there is no wind to erode them.',
+    'Voyager 1, launched in 1977, is now in interstellar space.',
+    'Sunlight takes about 8 minutes and 20 seconds to reach Earth.',
+    'Mars hosts the tallest volcano in the solar system: Olympus Mons.',
+    'Jupiter’s Great Red Spot is a storm larger than Earth and has existed for centuries.'
+  ];
+  function showRandomFunFact() {
+    if (!funFactEl) return;
+    const idx = Math.floor(Math.random() * FUN_FACTS.length);
+    funFactEl.textContent = `Fun space fact: ${FUN_FACTS[idx]}`;
   }
 
-  showLoading();
-  if (getImageBtn) getImageBtn.disabled = true;
-  try {
-    const url = `https://images-api.nasa.gov/search?q=${encodeURIComponent(query)}&media_type=image`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Network error: ${resp.status}`);
-    const data = await resp.json();
-    const items = (data.collection && data.collection.items) || [];
-    const images = [];
-    for (const item of items) {
-      if (!item.links || !item.links.length) continue;
-      const link = item.links.find(l => l.render === 'image') || item.links[0];
-      if (!link || !link.href) continue;
-      const d = (item.data && item.data[0]) || {};
-      images.push({
-        href: link.href,
-        title: d.title || '',
-        nasa_id: d.nasa_id,
-        date_created: d.date_created,
-        photographer: d.photographer || d.secondary_creator || d.credit || d.copyright || '',
-        center: d.center || '',
-        description: d.description || d.description_508 || d.explanation || '',
-        keywords: d.keywords || []
+  // Utility: create a DOM node from HTML string
+  function nodeFromHtml(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html.trim();
+    return template.content.firstChild;
+  }
+
+  // Render a placeholder (for no results)
+  function renderPlaceholder(message = 'No images found') {
+    if (!gallery) return;
+    gallery.innerHTML = `
+      <div class="placeholder">
+        <p>${message}</p>
+      </div>
+    `;
+  }
+
+  // Render gallery items. items: array of objects with fields:
+  // { title, url, thumbnail, media_type, date, nasa_id, description, photographer, center, keywords }
+  function renderGallery(items) {
+    if (!gallery) return;
+    if (!items || !items.length) {
+      renderPlaceholder('No images found for your query.');
+      return;
+    }
+
+    // Build gallery HTML
+    const container = document.createElement('div');
+    container.className = 'gallery-grid';
+
+    items.forEach((item, idx) => {
+      const thumb = item.thumbnail || item.url || '';
+      const title = item.title || 'Untitled';
+      const date = item.date || '';
+      const center = item.center || '';
+      const photographer = item.photographer || item.credit || item.copyright || '';
+      const desc = item.description || item.explanation || '';
+      const keywords = (item.keywords || []).slice(0, 5).join(', ');
+
+      const cardHtml = `
+        <article class="gallery-item" tabindex="0" data-idx="${idx}" role="button" aria-pressed="false">
+          <div class="thumb-wrap">
+            <img src="${thumb}" alt="${title.replace(/"/g, '&quot;')}" loading="lazy" />
+          </div>
+          <div class="caption">
+            <h3 class="title">${title}</h3>
+            <div class="meta-line">
+              ${date ? `<span class="date">${date}</span>` : ''}
+              ${photographer ? `<span class="by"> — ${photographer}</span>` : ''}
+              ${center ? `<span class="center"> (${center})</span>` : ''}
+            </div>
+            ${desc ? `<p class="desc">${desc.slice(0, 140)}${desc.length > 140 ? '…' : ''}</p>` : ''}
+            ${keywords ? `<div class="keywords">${keywords}</div>` : ''}
+          </div>
+        </article>
+      `;
+      const card = nodeFromHtml(cardHtml);
+
+      // Attach metadata on the DOM element for easy retrieval on click
+      card._meta = item;
+      container.appendChild(card);
+    });
+
+    gallery.innerHTML = '';
+    gallery.appendChild(container);
+
+    // Attach click and keyboard handlers to open lightbox
+    container.querySelectorAll('.gallery-item').forEach(el => {
+      el.addEventListener('click', () => openLightbox(el._meta));
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openLightbox(el._meta);
+        }
       });
-      if (images.length >= count) break;
+    });
+  }
+
+  // Lightbox helpers: open / close and render media + metadata
+  function openLightbox(meta) {
+    if (!lightbox || !lightboxMedia || !lightboxMeta) return;
+    lastFocusedBeforeLightbox = document.activeElement;
+
+    // Clear previous
+    lightboxMedia.innerHTML = '';
+    lightboxMeta.innerHTML = '';
+
+    // Move focus and show
+    lightbox.removeAttribute('aria-hidden');
+    lightbox.classList.add('open');
+    lightboxClose.focus();
+
+    // Render media based on meta
+    // APOD proxy responses may already contain media_type and url
+    const title = meta.title || 'Preview';
+    const date = meta.date || meta.date_created || '';
+    const desc = meta.description || meta.explanation || '';
+    const photographer = meta.photographer || meta.credit || meta.copyright || '';
+    const center = meta.center || '';
+    const nasaId = meta.nasa_id || meta.id || '';
+
+    // Helper to render metadata panel
+    function renderMetaExtras(extraHtml = '') {
+      const metaHtml = `
+        <h2 class="lb-title">${title}</h2>
+        <div class="lb-line">
+          ${date ? `<span>${date}</span>` : ''}
+          ${photographer ? `<span> — ${photographer}</span>` : ''}
+          ${center ? `<span> (${center})</span>` : ''}
+        </div>
+        ${desc ? `<p class="lb-desc">${desc}</p>` : ''}
+        ${extraHtml}
+        <div class="lb-links">
+          ${nasaId ? `<a href="https://images.nasa.gov/details/${encodeURIComponent(nasaId)}" target="_blank" rel="noopener">View on NASA Images</a>` : ''}
+        </div>
+      `;
+      lightboxMeta.innerHTML = metaHtml;
     }
 
-    if (images.length === 0) {
-      gallery.innerHTML = `<div class="placeholder"><p>No images found for "${query}". Try a different search.</p></div>`;
+    // If APOD/video cases: render differently
+    if (meta.media_type === 'video') {
+      // Many APOD videos are embeds (YouTube). If meta.url is an embed page, show iframe.
+      const videoUrl = meta.url || meta.thumbnail_url || '';
+      // Try to show an iframe safely
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('src', videoUrl);
+      iframe.setAttribute('frameborder', '0');
+      iframe.setAttribute('allowfullscreen', '');
+      iframe.className = 'lb-video';
+      lightboxMedia.appendChild(iframe);
+
+      renderMetaExtras('');
+      // Try OMDb lookup if an OMDb key is available and title looks like a movie
+      const { omdbKey } = getApiKeys();
+      if (omdbKey) {
+        // Best-effort movie lookup by title
+        fetch(`${OMDB_BASE}?apikey=${encodeURIComponent(omdbKey)}&t=${encodeURIComponent(title)}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.Response === 'True') {
+              const extra = `
+                <div class="omdb">
+                  ${data.Poster && data.Poster !== 'N/A' ? `<img class="omdb-poster" src="${data.Poster}" alt="${data.Title} poster" />` : ''}
+                  <div class="omdb-meta">
+                    <strong>${data.Title} (${data.Year})</strong>
+                    <div>${data.Genre || ''} ${data.imdbRating ? `— IMDb: ${data.imdbRating}` : ''}</div>
+                    ${data.imdbID ? `<a href="https://www.imdb.com/title/${data.imdbID}" target="_blank" rel="noopener">View on IMDb</a>` : ''}
+                  </div>
+                </div>
+              `;
+              // Append OMDb info to meta
+              const omdbContainer = document.createElement('div');
+              omdbContainer.innerHTML = extra;
+              lightboxMeta.appendChild(omdbContainer);
+            }
+          })
+          .catch(err => {
+            console.warn('OMDb lookup failed', err);
+          });
+      }
+    } else if (meta.media_type === 'image' || /\.(jpg|jpeg|png|gif)$/i.test(meta.url || '')) {
+      // Try to show a higher-resolution image if nasa_id is present by querying the NASA asset endpoint
+      const imgEl = document.createElement('img');
+      imgEl.className = 'lb-image';
+      if (nasaId) {
+        // Try assets endpoint to find better resolution or videos
+        fetch(`${IMAGES_API_BASE}/asset/${encodeURIComponent(nasaId)}`)
+          .then(r => r.json())
+          .then(data => {
+            // data.collection.items is an array of assets
+            if (data && data.collection && Array.isArray(data.collection.items)) {
+              // Prefer mp4 if present, otherwise largest image
+              const mp4 = data.collection.items.find(i => i.href && i.href.endsWith('.mp4'));
+              if (mp4) {
+                const video = document.createElement('video');
+                video.controls = true;
+                video.src = mp4.href;
+                video.className = 'lb-video';
+                lightboxMedia.appendChild(video);
+                renderMetaExtras('');
+                return;
+              }
+              // Find largest image (heuristic: last image item)
+              const images = data.collection.items.filter(i => i.href && i.href.match(/\.(jpg|jpeg|png|gif)$/i));
+              const best = images.length ? images[images.length - 1].href : meta.url;
+              imgEl.src = best || meta.url;
+              lightboxMedia.appendChild(imgEl);
+              renderMetaExtras('');
+              return;
+            }
+            // Fallback: use meta.url
+            imgEl.src = meta.url;
+            lightboxMedia.appendChild(imgEl);
+            renderMetaExtras('');
+          })
+          .catch(() => {
+            // fallback to meta.url
+            imgEl.src = meta.url;
+            lightboxMedia.appendChild(imgEl);
+            renderMetaExtras('');
+          });
+      } else {
+        imgEl.src = meta.url;
+        lightboxMedia.appendChild(imgEl);
+        renderMetaExtras('');
+      }
     } else {
-      renderImages(images);
-      setCache(cacheKey, images);
+      // Unknown media type: fallback text link
+      lightboxMedia.innerHTML = `<p>No preview available. <a href="${meta.url}" target="_blank" rel="noopener">Open source</a></p>`;
+      renderMetaExtras('');
     }
-  } catch (err) {
-    console.error('Fetch error', err);
-    gallery.innerHTML = `<div class="placeholder"><p>Error loading images: ${err.message}</p></div>`;
-  } finally {
-    if (getImageBtn) getImageBtn.disabled = false;
+
+    // Setup focus trap inside lightbox
+    trapFocus(lightbox);
   }
-}
 
-async function fetchAPOD(date) {
-  const cacheKey = `nasa_cache_apod_${date}`;
-  const cached = getCache(cacheKey);
-  if (cached) { renderImages(cached); return; }
-  showLoading();
-  if (getImageBtn) getImageBtn.disabled = true;
-  try {
-    const apodUrl = `https://api.nasa.gov/planetary/apod?api_key=${encodeURIComponent(APOD_API_KEY)}&date=${encodeURIComponent(date)}`;
-    const resp = await fetch(apodUrl);
-    if (!resp.ok) throw new Error(`APOD API error: ${resp.status}`);
-    const data = await resp.json();
-    const isVideo = data.media_type === 'video';
-    const thumb = data.thumbnail_url || (isVideo ? null : data.hdurl || data.url);
-    const hrefForGrid = thumb || (isVideo ? svgVideoPlaceholder() : (data.hdurl || data.url));
-    const item = {
-      href: hrefForGrid,
-      title: data.title || '',
-      nasa_id: data.date || '',
-      date_created: data.date || '',
-      photographer: data.copyright || '',
-      center: '',
-      description: data.explanation || '',
-      media_type: data.media_type || 'image',
-      content_url: data.url || data.hdurl || ''
-    };
-    renderImages([item]);
-    setCache(cacheKey, [item]);
-  } catch (err) {
-    console.error('APOD fetch error', err);
-    gallery.innerHTML = `<div class="placeholder"><p>Error loading APOD for ${date}: ${err.message}</p></div>`;
-  } finally {
-    if (getImageBtn) getImageBtn.disabled = false;
+  function closeLightbox() {
+    if (!lightbox) return;
+    lightbox.setAttribute('aria-hidden', 'true');
+    lightbox.classList.remove('open');
+    // restore focus
+    if (lastFocusedBeforeLightbox && typeof lastFocusedBeforeLightbox.focus === 'function') {
+      lastFocusedBeforeLightbox.focus();
+    }
   }
-}
 
-// Lightbox + accessibility: focus trap + restore focus
-let previousActiveElement = null;
-let lightboxKeydownHandler = null;
+  // Focus trap helper for modal
+  function trapFocus(modal) {
+    const focusableSelectors = 'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])';
+    const focusable = Array.from(modal.querySelectorAll(focusableSelectors)).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
 
-function openLightbox(item) {
-  if (!lightbox) return;
-  previousActiveElement = document.activeElement;
-  lightbox.setAttribute('aria-hidden', 'false');
-  setStatus(`Opening preview: ${item.title || ''}`);
-  lightboxMedia.innerHTML = `<div class="placeholder"><p>Loading preview…</p></div>`;
-  lightboxMeta.textContent = '';
+    function keyHandler(e) {
+      if (e.key === 'Tab') {
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      } else if (e.key === 'Escape') {
+        closeLightbox();
+      }
+    }
 
-  (async () => {
+    modal.addEventListener('keydown', keyHandler, { once: false });
+    // Remove the handler on close (simple approach)
+    const observer = new MutationObserver(() => {
+      if (modal.getAttribute('aria-hidden') === 'true') {
+        modal.removeEventListener('keydown', keyHandler);
+        observer.disconnect();
+      }
+    });
+    observer.observe(modal, { attributes: true, attributeFilter: ['aria-hidden'] });
+  }
+
+  // Fetch APOD via our server proxy (which can call APOD API and fallback to scrapes)
+  async function fetchApodForDate(dateStr) {
+    const cacheKeyName = `apod_${dateStr}`;
+    const cached = loadCache(cacheKeyName, APOD_CACHE_TTL_MS);
+    if (cached) {
+      return cached;
+    }
+    setStatus(`Fetching APOD for ${dateStr}…`);
     try {
-      if (item.nasa_id) {
-        const assetUrl = `https://images-api.nasa.gov/asset/${encodeURIComponent(item.nasa_id)}`;
-        const resp = await fetch(assetUrl);
-        if (resp.ok) {
-          const data = await resp.json();
-          const assetItems = (data.collection && data.collection.items) || [];
-          const video = assetItems.find(a => a.href && a.href.match(/\.mp4$/i));
-          if (video) {
-            lightboxMedia.innerHTML = `<video controls src="${video.href}"></video>`;
-          } else {
-            const jpg = assetItems.reverse().find(a => a.href && a.href.match(/\.jpe?g$/i));
-            if (jpg) lightboxMedia.innerHTML = `<img src="${jpg.href}" alt="${item.title || ''}"/>`;
-            else lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
-          }
-        } else {
-          lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
+      const resp = await fetch(`${APOD_PROXY_PATH}?date=${encodeURIComponent(dateStr)}`);
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => resp.statusText || 'error');
+        throw new Error(errText);
+      }
+      const data = await resp.json();
+      saveCache(cacheKeyName, data);
+      return data;
+    } catch (err) {
+      setStatus(`APOD fetch failed: ${err.message}`);
+      throw err;
+    }
+  }
+
+  // Fetch images from NASA images-api for a free-text query
+  // Returns an array of simplified items used by renderGallery
+  async function fetchImagesForQuery(query, count = 6) {
+    const q = (query || 'space').trim();
+    const cacheKeyName = `search_${q}_${count}`;
+    const cached = loadCache(cacheKeyName);
+    if (cached) {
+      return cached;
+    }
+
+    setStatus(`Searching NASA images for "${q}"…`);
+    // images-api supports media_type param; include images & video
+    const url = `${IMAGES_API_BASE}/search?q=${encodeURIComponent(q)}&media_type=image,video`;
+
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+
+      // Parse the API response into our simplified list
+      const items = (json.collection && json.collection.items ? json.collection.items : [])
+        .filter(i => {
+          // skip items without links
+          return Array.isArray(i.links) && i.links.length;
+        })
+        .slice(0, count)
+        .map(i => {
+          // asset metadata is in i.data[0], link(s) in i.links
+          const d = (i.data && i.data[0]) || {};
+          const link = (i.links && i.links[0] && i.links[0].href) || '';
+          const thumb = (i.links && i.links.find(l => l.rel === 'preview') && i.links.find(l => l.rel === 'preview').href) || link;
+          return {
+            title: d.title || d.description || '',
+            url: link,
+            thumbnail: thumb,
+            media_type: d.media_type || (link.match(/\.(jpg|png|gif)$/i) ? 'image' : 'video'),
+            date: d.date_created || '',
+            nasa_id: d.nasa_id || d.identifier || '',
+            description: d.description || '',
+            photographer: d.photographer || d.center || '',
+            center: d.center || '',
+            keywords: d.keywords || []
+          };
+        });
+
+      saveCache(cacheKeyName, items);
+      return items;
+    } catch (err) {
+      setStatus(`Search failed: ${err.message}`);
+      console.error(err);
+      throw err;
+    }
+  }
+
+  // Main action: decide APOD vs search and render results
+  async function handleFetchClick() {
+    if (!queryInput || !numSelect || !dateSelect) return;
+    const selectedDate = dateSelect.value;
+    const query = queryInput.value;
+    const count = parseInt(numSelect.value, 10) || 6;
+
+    try {
+      if (selectedDate) {
+        // APOD path via proxy
+        setStatus('Fetching APOD…');
+        try {
+          const apod = await fetchApodForDate(selectedDate);
+          // Normalize APOD response to gallery item shape
+          const item = {
+            title: apod.title || apod.title,
+            url: apod.url || apod.hdurl || '',
+            thumbnail: apod.url || apod.thumbnail_url || '',
+            media_type: apod.media_type || (apod.url && apod.url.match(/\.(jpg|png|gif)$/i) ? 'image' : 'video'),
+            date: apod.date || selectedDate,
+            description: apod.explanation || apod.description || '',
+            photographer: apod.copyright || '',
+            center: apod.site || ''
+          };
+          renderGallery([item]);
+          setStatus(`APOD loaded for ${selectedDate}`);
+        } catch (err) {
+          renderPlaceholder('No APOD available for that date.');
         }
       } else {
-        lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
+        // Images search path
+        setStatus('Searching images…');
+        const items = await fetchImagesForQuery(query || 'space', count);
+        renderGallery(items);
+        setStatus(`Found ${items.length} results for "${query || 'space'}"`);
       }
     } catch (err) {
-      console.error('Lightbox asset error', err);
-      lightboxMedia.innerHTML = `<img src="${item.href}" alt="${item.title || ''}"/>`;
+      renderPlaceholder('An error occurred while fetching images.');
+    }
+  }
+
+  // Clear cache button handler
+  function handleClearCache() {
+    clearAllCache();
+    renderPlaceholder('Cache cleared. Try fetching again.');
+    setStatus('Cache cleared.');
+  }
+
+  // Debug overlay: simple panel toggled by Ctrl/Cmd+D
+  function createDebugOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'debugOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.right = '12px';
+    overlay.style.bottom = '12px';
+    overlay.style.background = 'rgba(0,0,0,0.75)';
+    overlay.style.color = '#fff';
+    overlay.style.padding = '10px';
+    overlay.style.fontSize = '12px';
+    overlay.style.borderRadius = '6px';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'none';
+    overlay.style.maxWidth = '320px';
+    overlay.innerHTML = `<strong>Debug</strong><div id="dbgContent">loading…</div>`;
+    document.body.appendChild(overlay);
+
+    function update() {
+      const keys = getApiKeys();
+      const elems = [
+        { id: 'getImageBtn', ok: !!getImageBtn },
+        { id: 'gallery', ok: !!gallery },
+        { id: 'lightbox', ok: !!lightbox },
+        { id: 'funFact', ok: !!funFactEl }
+      ];
+      const parts = elems.map(e => `<div>${e.id}: ${e.ok ? 'OK' : 'MISSING'}</div>`).join('');
+      const keyParts = `<div>APOD key: ${keys.apodKey ? (keys.apodKey === 'DEMO_KEY' ? 'DEMO_KEY' : 'SET') : 'NONE'}</div>
+                        <div>OMDb key: ${keys.omdbKey ? 'SET' : 'NONE'}</div>`;
+      document.getElementById('dbgContent').innerHTML = `${parts}${keyParts}`;
     }
 
-    // metadata
-    let metaHTML = '';
-    if (item.title) metaHTML += `<h3>${item.title}</h3>`;
-    const smallParts = [];
-    if (item.date_created) smallParts.push(`Date: ${item.date_created}`);
-    if (item.photographer) smallParts.push(`By: ${item.photographer}`);
-    if (item.center) smallParts.push(`Center: ${item.center}`);
-    if (smallParts.length) metaHTML += `<div>${smallParts.join(' • ')}</div>`;
-    if (item.description) metaHTML += `<p class="lightbox-desc">${item.description}</p>`;
-    if (item.nasa_id) metaHTML += `<p><a href="https://images.nasa.gov/details/${encodeURIComponent(item.nasa_id)}" target="_blank" rel="noopener">View on NASA Images</a></p>`;
-    lightboxMeta.innerHTML = metaHTML;
-
-    // OMDb best-effort enrichment
-    if (OMDB_API_KEY && item.title && (item.media_type === 'video' || (item.content_url && item.content_url.includes('youtube')) || (item.href && item.href.includes('youtube')))) {
-      try {
-        const omdbUrl = `https://www.omdbapi.com/?apikey=${encodeURIComponent(OMDB_API_KEY)}&t=${encodeURIComponent(item.title)}`;
-        const ombResp = await fetch(omdbUrl);
-        if (ombResp.ok) {
-          const ombData = await ombResp.json();
-          if (ombData && ombData.Response === 'True') {
-            let omdbHtml = '<div class="omdb-info">';
-            if (ombData.Poster && ombData.Poster !== 'N/A') omdbHtml += `<img src="${ombData.Poster}" alt="${ombData.Title} poster" style="max-width:120px;float:left;margin-right:8px;"/>`;
-            omdbHtml += `<div style="overflow:hidden;"><strong>${ombData.Title}</strong> (${ombData.Year})<br/>${ombData.Genre || ''}<br/>Rated: ${ombData.Rated || 'N/A'}`;
-            if (ombData.imdbID) omdbHtml += `<br/><a href="https://www.imdb.com/title/${ombData.imdbID}" target="_blank" rel="noopener">View on IMDb</a>`;
-            omdbHtml += `</div><div style="clear:both"></div></div>`;
-            lightboxMeta.innerHTML += omdbHtml;
-            setStatus('Loaded movie info from OMDb.');
-          }
-        }
-      } catch (e) { console.warn('OMDb fetch failed', e); }
-    }
-
-    // focus management: focus close button and trap focus
-    if (lightboxClose) lightboxClose.focus();
-    trapLightboxFocus();
-  })();
-}
-
-function trapLightboxFocus() {
-  if (!lightbox) return;
-  const focusable = lightbox.querySelectorAll('a, button, input, textarea, select, [tabindex]:not([tabindex="-1"])');
-  const focusables = Array.prototype.slice.call(focusable).filter(el => !el.hasAttribute('disabled'));
-  if (!focusables.length) return;
-  const first = focusables[0];
-  const last = focusables[focusables.length - 1];
-  lightboxKeydownHandler = (e) => {
-    if (e.key === 'Tab') {
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last.focus(); }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    // Toggle on Ctrl/Cmd + D
+    window.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        overlay.style.display = overlay.style.display === 'none' ? 'block' : 'none';
+        update();
       }
-    } else if (e.key === 'Escape' || e.key === 'Esc') {
-      closeLightbox();
+    });
+
+    return { update };
+  }
+
+  // Initialize everything after DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    // assign DOM refs
+    getImageBtn = document.getElementById('getImageBtn');
+    clearCacheBtn = document.getElementById('clearCacheBtn');
+    queryInput = document.getElementById('queryInput');
+    numSelect = document.getElementById('numSelect');
+    dateSelect = document.getElementById('dateSelect');
+    gallery = document.getElementById('gallery');
+    statusEl = document.getElementById('status');
+    lightbox = document.getElementById('lightbox');
+    lightboxBackdrop = document.getElementById('lightboxBackdrop');
+    lightboxClose = document.getElementById('lightboxClose');
+    lightboxMedia = document.getElementById('lightboxMedia');
+    lightboxMeta = document.getElementById('lightboxMeta');
+    funFactEl = document.getElementById('funFact');
+
+    // Defensive checks
+    if (!gallery) {
+      console.error('Gallery element missing; aborting initialization.');
+      return;
     }
-  };
-  document.addEventListener('keydown', lightboxKeydownHandler);
-}
 
-function releaseLightboxFocus() {
-  if (lightboxKeydownHandler) { document.removeEventListener('keydown', lightboxKeydownHandler); lightboxKeydownHandler = null; }
-}
+    // Show a random fun fact at top
+    showRandomFunFact();
 
-function closeLightbox() {
-  if (!lightbox) return;
-  lightbox.setAttribute('aria-hidden', 'true');
-  lightboxMedia.innerHTML = '';
-  lightboxMeta.textContent = '';
-  releaseLightboxFocus();
-  if (previousActiveElement && previousActiveElement.focus) previousActiveElement.focus();
-  previousActiveElement = null;
-  setStatus('Closed preview.');
-}
+    // Event wiring
+    if (getImageBtn) getImageBtn.addEventListener('click', handleFetchClick);
+    if (clearCacheBtn) clearCacheBtn.addEventListener('click', handleClearCache);
 
-function renderImages(images) {
-  gallery.innerHTML = '';
-  images.forEach(img => {
-    const item = document.createElement('div');
-    item.className = 'gallery-item';
-    const imageEl = document.createElement('img');
-    imageEl.src = img.href;
-    imageEl.alt = img.title || 'NASA Image';
-    const caption = document.createElement('p'); caption.textContent = img.title || '';
-    const meta = document.createElement('div'); meta.className = 'meta';
-    const metaParts = [];
-    if (img.date_created) metaParts.push(`Date: ${img.date_created}`);
-    if (img.photographer) metaParts.push(`By: ${img.photographer}`);
-    if (img.center) metaParts.push(`Center: ${img.center}`);
-    meta.textContent = metaParts.join(' • ');
-    item.appendChild(imageEl); item.appendChild(caption); if (meta.textContent) item.appendChild(meta);
-    gallery.appendChild(item);
-    item.addEventListener('click', () => openLightbox(img));
+    // Allow Enter to trigger fetch from query input
+    if (queryInput) {
+      queryInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleFetchClick();
+        }
+      });
+    }
+
+    // Lightbox handlers
+    if (lightboxBackdrop) {
+      lightboxBackdrop.addEventListener('click', closeLightbox);
+    }
+    if (lightboxClose) {
+      lightboxClose.addEventListener('click', closeLightbox);
+    }
+
+    // Global Escape to close lightbox
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const isOpen = lightbox && lightbox.getAttribute('aria-hidden') !== 'true';
+        if (isOpen) closeLightbox();
+      }
+    });
+
+    // Create Debug overlay (Ctrl/Cmd+D)
+    const dbg = createDebugOverlay();
+
+    // Expose a small API for debugging in console if needed
+    window.__nasaDebug = {
+      clearCache: clearAllCache,
+      showFunFact: showRandomFunFact,
+      updateDebug: dbg.update
+    };
+
+    setStatus('Ready');
   });
-}
 
-const FUN_FACTS = [
-  'A day on Venus is longer than a year on Venus.',
-  'One million Earths could fit inside the Sun.',
-  'There are more trees on Earth than stars in the Milky Way.',
-  'Jupiter’s magnetic field is 20,000 times stronger than Earth’s.',
-  'Neutron stars can spin 600 times per second.'
-];
-function showFunFact() { if (!funFactEl) return; const f = FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)]; funFactEl.textContent = `Fun space fact: ${f}`; }
+  // Global error reporting: show in #status if available
+  window.addEventListener('error', (e) => {
+    try { if (statusEl) statusEl.textContent = `Error: ${e.message || e}`; } catch (err) {}
+    console.error('Unhandled error', e);
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    try { if (statusEl) statusEl.textContent = `Error: ${e.reason || e}`; } catch (err) {}
+    console.error('Unhandled rejection', e);
+  });
 
-// DOM-ready wiring
-document.addEventListener('DOMContentLoaded', () => {
-  // resolve DOM refs
-  statusEl = document.getElementById('status');
-  lightbox = document.getElementById('lightbox');
-  lightboxBackdrop = document.getElementById('lightboxBackdrop');
-  lightboxClose = document.getElementById('lightboxClose');
-  lightboxMedia = document.getElementById('lightboxMedia');
-  lightboxMeta = document.getElementById('lightboxMeta');
-  funFactEl = document.getElementById('funFact');
-  clearCacheBtn = document.getElementById('clearCacheBtn');
-
-  showOrbitPlaceholder();
-
-  if (getImageBtn) getImageBtn.addEventListener('click', (e) => { e.preventDefault(); fetchSpaceImages(); });
-  if (queryInput) queryInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); fetchSpaceImages(); } });
-  if (clearCacheBtn) clearCacheBtn.addEventListener('click', (e) => { e.preventDefault(); const keys = Object.keys(localStorage); let removed = 0; for (const k of keys) { if (k && k.startsWith('nasa_cache_')) { localStorage.removeItem(k); removed++; } } setStatus(`Cleared ${removed} cached result(s).`); showOrbitPlaceholder(); });
-
-  // load keys from localStorage (generator writes config.js, but localStorage may have been used previously)
-  try { const nas = localStorage.getItem('api_key_nasa'); const omb = localStorage.getItem('api_key_omdb'); if (nas) APOD_API_KEY = nas; if (omb) OMDB_API_KEY = omb; } catch (e) { console.warn('Failed to load API keys', e); }
-  // load config.js provided keys (if present)
-  try { if (window && window.NASA_CONFIG) { if (window.NASA_CONFIG.APOD_API_KEY) APOD_API_KEY = window.NASA_CONFIG.APOD_API_KEY; if (window.NASA_CONFIG.OMDB_API_KEY) OMDB_API_KEY = window.NASA_CONFIG.OMDB_API_KEY; setStatus('Loaded API keys from local config.'); } } catch (e) {}
-
-  // lightbox wiring
-  if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
-  if (lightboxBackdrop) lightboxBackdrop.addEventListener('click', closeLightbox);
-
-  // debug panel toggled by Ctrl/Cmd+D
-  const dbg = document.createElement('div'); dbg.id = 'debugPanel'; dbg.style.cssText = 'position:fixed;right:12px;bottom:12px;background:rgba(0,0,0,0.8);color:#fff;padding:8px 10px;border-radius:6px;font-size:12px;z-index:2000;max-width:260px;display:none;'; dbg.innerHTML = '<strong>Debug</strong><div id="dbgContent" style="margin-top:6px"></div>'; document.body.appendChild(dbg);
-  function updateDbg() { const c = document.getElementById('dbgContent'); if (!c) return; c.innerHTML = `<div>getImageBtn: ${!!getImageBtn}</div><div>clearCacheBtn: ${!!clearCacheBtn}</div><div>gallery: ${!!gallery}</div><div>lightbox: ${!!lightbox}</div><div>APOD key: ${APOD_API_KEY ? 'set' : 'unset'}</div><div>OMDb key: ${OMDB_API_KEY ? 'set' : 'unset'}</div>`; }
-  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); if (dbg.style.display === 'none') { updateDbg(); dbg.style.display = 'block'; } else dbg.style.display = 'none'; } });
-
-  // show fun fact now
-  showFunFact();
-});
-
-// global error reporting
-window.addEventListener('error', (ev) => { try { if (document && document.getElementById('status')) document.getElementById('status').textContent = `JS error: ${ev.message}`; } catch (e) {} console.error('Global error', ev.error || ev.message || ev); });
-window.addEventListener('unhandledrejection', (ev) => { try { if (document && document.getElementById('status')) document.getElementById('status').textContent = `Unhandled promise rejection: ${ev.reason && ev.reason.message ? ev.reason.message : String(ev.reason)}`; } catch (e) {} console.error('Unhandled rejection', ev); });
+})();
