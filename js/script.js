@@ -512,7 +512,32 @@
             renderAstronautPlaceholder('APOD not available for this date (before 2003).');
             setStatus('APOD not available. Showing a friendly placeholder for historic dates.');
           } else {
-            renderPlaceholder('No APOD available for that date.');
+            // For dates on/after 2003-04-28, try a client-side Images API search as a best-effort fallback
+            try {
+              setStatus('APOD not found — attempting a related NASA images search...');
+              const year = (selectedDate || '').slice(0, 4) || '';
+              const fallbackQuery = year ? `${year} apod` : 'space';
+              const fallbackItems = await fetchImagesForQuery(fallbackQuery, parseInt(numSelect.value, 10) || 6);
+              if (fallbackItems && fallbackItems.length) {
+                // show a banner explaining this is a fallback
+                renderGallery(fallbackItems);
+                if (statusEl) {
+                  const b = document.createElement('div');
+                  b.className = 'fallback-banner';
+                  b.textContent = 'APOD not available for this date — showing related NASA images (best effort).';
+                  gallery.insertAdjacentElement('beforebegin', b);
+                }
+                setStatus('Showing related NASA images because APOD could not be retrieved.');
+              } else {
+                // Nothing found — show astronaut placeholder as gentle fallback
+                renderAstronautPlaceholder('APOD not available for this date.');
+                setStatus('APOD not available and no related images found.');
+              }
+            } catch (innerErr) {
+              // If images search fails, show the astronaut placeholder
+              renderAstronautPlaceholder('APOD not available for this date.');
+              setStatus('APOD not available. Showing placeholder.');
+            }
           }
         }
       } else {
@@ -639,6 +664,25 @@
 
     // Expose a small API for debugging in console if needed
     window.__nasaDebug = {
+      clearCache: clearAllCache,
+      showFunFact: showRandomFunFact,
+      updateDebug: dbg.update
+    };
+
+    setStatus('Ready');
+  });
+
+  // Global error reporting: show in #status if available
+  window.addEventListener('error', (e) => {
+    try { if (statusEl) statusEl.textContent = `Error: ${e.message || e}`; } catch (err) {}
+    console.error('Unhandled error', e);
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    try { if (statusEl) statusEl.textContent = `Error: ${e.reason || e}`; } catch (err) {}
+    console.error('Unhandled rejection', e);
+  });
+
+})();
       clearCache: clearAllCache,
       showFunFact: showRandomFunFact,
       updateDebug: dbg.update
