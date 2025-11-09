@@ -4,6 +4,7 @@
 // 1) Try the official NASA APOD API
 // 2) If that fails, try scraping the apod.nasa.gov page for that date
 // 3) If still not found, ask the Wayback Machine for an archived copy and scrape that
+// 4) If still not found, try the Images API as a best-effort fallback (same year)
 // Responses are cached in-memory for a TTL to avoid rate limits.
 
 const express = require('express');
@@ -46,7 +47,7 @@ function dateToApodPage(dateStr) {
 async function fetchApodApi(date) {
   try {
     const url = `https://api.nasa.gov/planetary/apod?date=${date}&api_key=${NASA_API_KEY}`;
-    const res = await axios.get(url, { timeout: 15_000 });
+    const res = await axios.get(url, { timeout: 15000 });
     if (res.status === 200 && res.data) {
       return { source: 'apod-api', raw: res.data };
     }
@@ -66,7 +67,7 @@ async function scrapeApodPage(pageUrl) {
     const title = $('title').first().text().trim() || $('b').first().text().trim();
 
     // Try to find the main image or video
-    // Images are often the first <img> or wrapped in <a href="image...">
+    // Images are often the first <img> or wrapped in <a href=\"image...\">
     let src = null;
 
     // First check for an <a> that links to images (common pattern)
@@ -118,6 +119,38 @@ async function fetchWaybackAndScrape(originalPage) {
   } catch (err) {
     return null;
   }
+}
+
+async function fetchImagesApiFallback(date) {
+  // Use the NASA Images API to search for images in the same year as `date`.
+  // This is a best-effort fallback when APOD and Wayback don't return the asset.
+  try {
+    const year = date.split('-')[0];
+    const q = encodeURIComponent('apod');
+    const url = `https://images-api.nasa.gov/search?q=${q}&media_type=image&year_start=${year}&year_end=${year}`;
+    const res = await axios.get(url, { timeout: 15000 });
+    if (res.status !== 200 || !res.data || !res.data.collection || !res.data.collection.items) return null;
+    const items = res.data.collection.items;
+    // Find first item with links that look like a direct image
+    for (const item of items) {
+      if (!item.links || item.links.length === 0) continue;
+      const link = item.links.find(l => l.href && /\.(jpg|jpeg|png|gif)$/i.test(l.href));
+      if (link && link.href) {
+        const data = (item.data && item.data[0]) || {};
+        return {
+          date,
+          title: data.title || null,
+          explanation: data.description || data.description_508 || null,
+          media_type: 'image',
+          url: link.href,
+          source: 'images-api-fallback',
+        };
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+  return null;
 }
 
 app.get('/apod-proxy', async (req, res) => {
@@ -183,6 +216,13 @@ app.get('/apod-proxy', async (req, res) => {
     return res.json(out);
   }
 
+  // 4) Try NASA Images API as a best-effort fallback (same year)
+  const imagesFallback = await fetchImagesApiFallback(date);
+  if (imagesFallback && imagesFallback.url) {
+    cacheSet(cacheKey, imagesFallback);
+    return res.json(imagesFallback);
+  }
+
   return res.status(404).json({ error: `No APOD found for ${date}` });
 });
 
@@ -193,3 +233,4 @@ app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`APOD proxy server listening on http://localhost:${PORT}`);
 });
+
