@@ -603,8 +603,10 @@
     return { update };
   }
 
-  // Initialize everything after DOM is ready
-  document.addEventListener('DOMContentLoaded', () => {
+  // Initialize everything after DOM is ready. Use an init() function and run it immediately
+  // if the document is already parsed (handles scripts inserted at different phases).
+  function init() {
+    console.log('Initializing NASA Space Explorer UI');
     // assign DOM refs
     getImageBtn = document.getElementById('getImageBtn');
     clearCacheBtn = document.getElementById('clearCacheBtn');
@@ -670,7 +672,14 @@
     };
 
     setStatus('Ready');
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    // Document already parsed — initialize immediately
+    init();
+  }
 
   // Global error reporting: show in #status if available
   window.addEventListener('error', (e) => {
@@ -683,22 +692,4 @@
   });
 
 })();
-      clearCache: clearAllCache,
-      showFunFact: showRandomFunFact,
-      updateDebug: dbg.update
-    };
 
-    setStatus('Ready');
-  });
-
-  // Global error reporting: show in #status if available
-  window.addEventListener('error', (e) => {
-    try { if (statusEl) statusEl.textContent = `Error: ${e.message || e}`; } catch (err) {}
-    console.error('Unhandled error', e);
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    try { if (statusEl) statusEl.textContent = `Error: ${e.reason || e}`; } catch (err) {}
-    console.error('Unhandled rejection', e);
-  });
-
-})();
