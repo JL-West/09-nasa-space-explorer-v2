@@ -123,6 +123,31 @@
     `;
   }
 
+  // Render a friendly astronaut SVG when APOD is unavailable for historic dates
+  function renderAstronautPlaceholder(message = 'APOD not available for this date.') {
+    if (!gallery) return;
+    const svg = `
+      <svg width="220" height="220" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g fill="none" fill-rule="evenodd">
+          <circle cx="32" cy="32" r="32" fill="#081e3b"/>
+          <g transform="translate(12 12)">
+            <rect x="12" y="18" width="20" height="12" rx="2" fill="#fff" opacity="0.9"/>
+            <circle cx="22" cy="8" r="6" fill="#fff"/>
+            <circle cx="22" cy="8" r="4" fill="#081e3b"/>
+            <path d="M4 34c2-6 10-8 18-8s16 2 18 8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+            <path d="M0 8c6 0 8-6 14-6s8 6 14 6" stroke="#6fb3ff" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+          </g>
+        </g>
+      </svg>
+    `;
+    gallery.innerHTML = `
+      <div class="no-apod-placeholder">
+        <div class="svg-wrap">${svg}</div>
+        <div class="no-apod-msg"><p>${message}</p><p class="hint">Note: APOD archive is reliably available from April 28, 2003 onward.</p></div>
+      </div>
+    `;
+  }
+
   // Render gallery items. items: array of objects with fields:
   // { title, url, thumbnail, media_type, date, nasa_id, description, photographer, center, keywords }
   function renderGallery(items) {
@@ -466,10 +491,29 @@
             photographer: apod.copyright || '',
             center: apod.site || ''
           };
-          renderGallery([item]);
-          setStatus(`APOD loaded for ${selectedDate}`);
+          // If the proxy returned an images-api fallback, show a small badge and message
+          if (apod && apod.source === 'images-api-fallback') {
+            setStatus(`APOD not found — showing a related NASA image (best effort).`);
+            renderGallery([item]);
+            // Add a small banner above the gallery so users know it's a fallback
+            if (statusEl) {
+              const b = document.createElement('div');
+              b.className = 'fallback-banner';
+              b.textContent = 'APOD not available for this date — showing a related NASA image instead.';
+              gallery.insertAdjacentElement('beforebegin', b);
+            }
+          } else {
+            renderGallery([item]);
+            setStatus(`APOD loaded for ${selectedDate}`);
+          }
         } catch (err) {
-          renderPlaceholder('No APOD available for that date.');
+          // For historic dates earlier than 2003-04-28 show the astronaut placeholder
+          if (selectedDate && typeof selectedDate === 'string' && selectedDate < '2003-04-28') {
+            renderAstronautPlaceholder('APOD not available for this date (before 2003).');
+            setStatus('APOD not available. Showing a friendly placeholder for historic dates.');
+          } else {
+            renderPlaceholder('No APOD available for that date.');
+          }
         }
       } else {
         // Images search path
