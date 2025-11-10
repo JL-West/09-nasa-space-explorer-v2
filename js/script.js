@@ -493,24 +493,10 @@
     const cacheKeyName = `apod_${dateStr}`;
     const cached = loadCache(cacheKeyName, APOD_CACHE_TTL_MS);
     if (cached) return cached;
-
-    setStatus(`Fetching APOD for ${dateStr}…`);
-    const { apodKey } = getApiKeys();
+    setStatus(`Fetching APOD for ${dateStr} via server proxy…`);
     try {
-      // If a non-DEMO key is available client-side, call the APOD API directly
-      if (apodKey && apodKey !== 'DEMO_KEY') {
-        const url = `https://api.nasa.gov/planetary/apod?date=${encodeURIComponent(dateStr)}&api_key=${encodeURIComponent(apodKey)}`;
-        const resp = await fetch(url);
-        if (!resp.ok) {
-          const errText = await resp.text().catch(() => resp.statusText || 'error');
-          throw new Error(errText);
-        }
-        const data = await resp.json();
-        saveCache(cacheKeyName, data);
-        return data;
-      }
-
-      // Otherwise fall back to the server-side proxy
+      // Always use the server-side proxy for APOD lookups. This avoids exposing
+      // client-side API keys and keeps behavior consistent across environments.
       const resp = await fetch(`${APOD_PROXY_PATH}?date=${encodeURIComponent(dateStr)}`);
       if (!resp.ok) {
         const errText = await resp.text().catch(() => resp.statusText || 'error');
@@ -520,7 +506,7 @@
       saveCache(cacheKeyName, data);
       return data;
     } catch (err) {
-      setStatus(`APOD fetch failed: ${err.message}`);
+      setStatus(`APOD proxy fetch failed: ${err.message}`);
       throw err;
     }
   }
