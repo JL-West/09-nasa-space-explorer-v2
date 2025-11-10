@@ -101,4 +101,18 @@ NASA_API_KEY=your_nasa_key OMDB_API_KEY=your_omdb_key ./scripts/generate-config.
 
 The script writes `config.js` and the file is ignored by git. Use this on your local machine only — never commit secrets.
 
+### Start server with local `config.js`
+
+If you have a local `config.js` (recommended for development and kept out of version control), use the helper to start the APOD proxy which reads the keys from your local config:
+
+```bash
+# make the helper executable once
+chmod +x ./scripts/start-with-config.sh
+
+# start the server (background). The script reads keys from ./config.js
+./scripts/start-with-config.sh
+```
+
+The script prints a short masked notice and writes logs to `/tmp/apod-server.log`.
+
 
