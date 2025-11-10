@@ -8,7 +8,8 @@
 /* Base page styles */
 body {
   font-family: Arial, sans-serif;
-  background-color: #f1f1f1;
+  background-color: #071b2f; /* deep navy like NASA branding */
+  color: #f7fbff;
   padding: 20px;
 }
 
@@ -26,18 +27,21 @@ body {
   padding-top: 20px;
   padding-bottom: 20px;
   margin-bottom: 20px;
+  background: linear-gradient(90deg,#051426 0%, #08243b 100%);
+  border-radius: 12px;
 }
 
 h1 {
   font-family: Verdana, sans-serif;
   font-weight: bold;
-  color: #212121;
+  color: #fff;
 }
 
 /* Logo */
 .logo {
-  width: 140px;
+  width: 120px;
   margin-right: 15px;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4));
 }
 
 /* Date‐picker & button row */
@@ -55,23 +59,26 @@ input[type="date"],
 button {
   font-family: Arial, sans-serif;
   font-weight: normal;
-  color: #666;
+  color: #07305f;
   padding: 10px 15px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 4px;
   font-size: 16px;
   line-height: 1.4;
   width: 100%;
+  background: rgba(255,255,255,0.03);
+  color: #e6f2ff;
 }
 
 /* Button specific */
 button {
-  background-color: #d3d3d3;
-  color: black;
+  background-color: #0b3d91; /* NASA blue */
+  color: #fff;
   cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.06);
 }
 button:hover {
-  background-color: #bfbfbf;
+  background-color: #0f57b7;
 }
 
 /* Stack horizontally on wider screens */
@@ -204,10 +211,10 @@ button:hover {
   flex: 1 1 100%;  /* full width by default */
   min-width: 280px;
   max-width: 500px;
-  background: white;
-  padding: 10px;
+  background: linear-gradient(180deg, #071b2f, #0b2a44);
+  padding: 12px;
   border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -224,7 +231,7 @@ button:hover {
   width: 100%;
   height: 200px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .gallery-item p {
@@ -238,7 +245,7 @@ button:hover {
   flex: 1 1 100%;
   text-align: center;
   padding: 40px;
-  color: #666;
+  color: #cfe6ff;
 }
 
 .placeholder-icon {
@@ -253,10 +260,10 @@ button:hover {
   justify-content: center;
   gap: 18px;
   padding: 36px;
-  background: linear-gradient(180deg, #f8fbff, #f1f6ff);
+  background: linear-gradient(180deg, #091828, #061422);
   border-radius: 10px;
-  color: #07224a;
-  box-shadow: 0 6px 18px rgba(3, 37, 76, 0.08);
+  color: #dbeeff;
+  box-shadow: 0 12px 36px rgba(2, 18, 36, 0.6);
 }
 .no-apod-placeholder .svg-wrap {
   width: 220px;
@@ -290,7 +297,7 @@ button:hover {
   max-width: 980px;
   text-align: center;
   font-size: 14px;
-  box-shadow: 0 6px 14px rgba(11,61,145,0.12);
+  box-shadow: 0 12px 30px rgba(3,61,145,0.18);
 }
 
 /* metadata under each gallery item */
@@ -353,11 +360,11 @@ button:hover {
 .fun-fact {
   margin: 18px 20px;
   padding: 12px 14px;
-  background: linear-gradient(90deg, #fff, #f7fbff);
+  background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
   border-radius: 8px;
-  color: #123;
+  color: #dbeeff;
   font-size: 15px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
 }
 
 /* Key indicator (masked) */
@@ -370,6 +377,48 @@ button:hover {
   font-size: 13px;
   display: inline-block;
 }
+
+/* Loading overlay and spinner */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,12,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 200ms ease-in-out, visibility 200ms;
+}
+.loading-overlay.show {
+  visibility: visible;
+  opacity: 1;
+}
+.loading-inner {
+  text-align: center;
+  color: #fff;
+}
+.spinner {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 6px solid rgba(255,255,255,0.14);
+  border-top-color: #ff2d55; /* accent red */
+  animation: spin 1s linear infinite;
+  margin: 0 auto 8px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 15px; opacity: 0.95; }
+
+/* Skeleton card for loading state */
+.skeleton-grid { display:flex; flex-wrap:wrap; gap:20px; padding:20px; justify-content:center; }
+.skeleton-card { width: 320px; background: linear-gradient(180deg,#071b2f,#071b2f); padding:12px; border-radius:8px; box-shadow:0 8px 24px rgba(0,0,0,0.6); }
+.skeleton-thumb { height:200px; background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06)); border-radius:6px; }
+.skeleton-line { height:14px; background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06)); margin-top:10px; border-radius:4px; }
+.skeleton-line.short { width:60%; }
+.skeleton-line.medium { width:80%; }
+.skeleton-line.long { width:95%; }
 
 
 /* Screen-reader only helper */
