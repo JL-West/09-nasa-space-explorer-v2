@@ -306,6 +306,60 @@
 
       // Attach metadata on the DOM element for easy retrieval on click
       card._meta = item;
+
+      // Robust image loading: if the src fails (not an actual image URL),
+      // try falling back to meta.url, then to the NASA Images asset endpoint
+      // (if nasa_id available), then show a small placeholder.
+      (function enhanceImageLoading(cardEl, itemMeta) {
+        try {
+          const img = cardEl.querySelector('img');
+          if (!img) return;
+
+          async function handleImgError() {
+            try {
+              img.removeEventListener('error', handleImgError);
+              // Try using the meta.url if different
+              const candidate1 = itemMeta.url || '';
+              if (candidate1 && candidate1 !== img.src) {
+                img.src = candidate1;
+                return;
+              }
+
+              // If we have a NASA id, query the asset endpoint for images
+              if (itemMeta.nasa_id) {
+                try {
+                  const resp = await fetch(`${IMAGES_API_BASE}/asset/${encodeURIComponent(itemMeta.nasa_id)}`);
+                  if (resp.ok) {
+                    const j = await resp.json();
+                    if (j && j.collection && Array.isArray(j.collection.items)) {
+                      const imgs = j.collection.items.filter(i => i.href && /(jpg|jpeg|png|gif)$/i.test(i.href));
+                      if (imgs.length) {
+                        img.src = imgs[imgs.length - 1].href;
+                        return;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // ignore and continue to placeholder
+                }
+              }
+
+              // Ultimate fallback: small inline SVG placeholder
+              img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="100%" height="100%" fill="%2308122a"/><text x="50%" y="50%" fill="%23fff" font-size="18" text-anchor="middle" dy=".3em">Image unavailable</text></svg>';
+            } catch (err) {
+              console.warn('Image fallback failed', err);
+            }
+          }
+
+          // If the initial src is not an obvious image URL, preemptively set an onerror
+          img.addEventListener('error', handleImgError);
+          // If the src looks like a JSON / non-image (no extension), still try to load
+          // and let the error handler attempt recovery.
+        } catch (e) {
+          // ignore
+        }
+      })(card, item);
+
       container.appendChild(card);
     });
 

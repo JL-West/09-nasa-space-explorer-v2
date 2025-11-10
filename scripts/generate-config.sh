@@ -1,4 +1,57 @@
 #!/usr/bin/env bash
+set -euo pipefail
+
+# Interactive helper to generate a local config.js from env vars or prompts.
+# The file is ignored by git. Use this on your local machine only.
+
+OUT_FILE="./config.js"
+
+if [ -f "$OUT_FILE" ]; then
+  echo "A config.js already exists at $OUT_FILE"
+  read -p "Overwrite it? [y/N]: " yn
+  case "$yn" in
+    [Yy]*) ;;
+    *) echo "Aborted."; exit 0 ;;
+  esac
+fi
+
+# Prefer environment variables if set
+NASA_KEY=${NASA_API_KEY:-}
+OMDB_KEY=${OMDB_API_KEY:-}
+
+if [ -z "$NASA_KEY" ]; then
+  read -p "Enter NASA APOD API key (or press Enter to use DEMO_KEY): " NASA_KEY
+  NASA_KEY=${NASA_KEY:-DEMO_KEY}
+fi
+
+if [ -z "$OMDB_KEY" ]; then
+  read -p "Enter OMDb API key (optional): " OMDB_KEY
+fi
+
+cat > "$OUT_FILE" <<EOF
+/* Local config (DEV ONLY) - DO NOT COMMIT */
+(function (root, factory) {
+  const cfg = factory();
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = cfg;
+  }
+  if (typeof window !== 'undefined') {
+    window.NASA_CONFIG = cfg;
+  }
+})(this, function () {
+  return {
+    NASA_API_KEY: '$NASA_KEY',
+    OMDB_API_KEY: '$OMDB_KEY'
+  };
+});
+EOF
+
+chmod 600 "$OUT_FILE" || true
+
+echo "Wrote $OUT_FILE (kept private on this machine)."
+
+echo "Tip: start the server with ./scripts/start-with-config.sh or set NASA_API_KEY in the environment and run ./scripts/start-env.sh"
+#!/usr/bin/env bash
 # Simple helper to create a local config.js from environment variables or interactive input.
 # Usage:
 #   (1) Set env vars and run:

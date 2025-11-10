@@ -115,4 +115,29 @@ chmod +x ./scripts/start-with-config.sh
 
 The script prints a short masked notice and writes logs to `/tmp/apod-server.log`.
 
+### Alternative: generate a `config.js` interactively
+
+If you prefer an interactive helper to create `config.js`, run:
+
+```bash
+chmod +x ./scripts/generate-config.sh
+./scripts/generate-config.sh
+```
+
+This prompts for keys (or uses environment variables if provided) and writes a private `config.js`.
+
+### Environment-only start (no `config.js`)
+
+If you prefer to keep keys strictly in environment variables, use the env-only starter:
+
+```bash
+export NASA_API_KEY="your_nasa_key"
+export OMDB_API_KEY="your_omdb_key" # optional
+chmod +x ./scripts/start-env.sh
+./scripts/start-env.sh
+```
+
+This starts the server using the environment-provided keys and does not read `config.js`.
+
+
 
