@@ -505,12 +505,25 @@
 
   // Main action: decide APOD vs search and render results
   async function handleFetchClick() {
-    if (!queryInput || !numSelect || !dateSelect) return;
+    console.log('handleFetchClick invoked');
+    if (!queryInput || !numSelect || !dateSelect) {
+      console.warn('Missing UI elements for fetch');
+      return;
+    }
     const selectedDate = dateSelect.value;
     const query = queryInput.value;
     const count = parseInt(numSelect.value, 10) || 6;
 
+    // Disable fetch button while working to prevent duplicate clicks
+    let buttonDisabledByUs = false;
     try {
+      if (getImageBtn && !getImageBtn.disabled) {
+        getImageBtn.disabled = true;
+        buttonDisabledByUs = true;
+        // provide feedback
+        getImageBtn.dataset.prevText = getImageBtn.textContent;
+          getImageBtn.textContent = 'Loading…';
+        }
       if (selectedDate) {
         // APOD path via proxy
         setStatus('Fetching APOD…');
@@ -584,7 +597,16 @@
         setStatus(`Found ${items.length} results for "${query || 'space'}"`);
       }
     } catch (err) {
+      console.error('handleFetchClick error', err);
       renderPlaceholder('An error occurred while fetching images.');
+    } finally {
+      if (buttonDisabledByUs && getImageBtn) {
+        getImageBtn.disabled = false;
+        if (getImageBtn.dataset.prevText) {
+          getImageBtn.textContent = getImageBtn.dataset.prevText;
+          delete getImageBtn.dataset.prevText;
+        }
+      }
     }
   }
 
