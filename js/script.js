@@ -238,10 +238,10 @@
         </g>
       </svg>
     `;
-    gallery.innerHTML = `
+      gallery.innerHTML = `
       <div class="no-apod-placeholder">
         <div class="svg-wrap">${svg}</div>
-        <div class="no-apod-msg"><p>${message}</p><p class="hint">Note: APOD archive is reliably available from April 28, 2003 onward.</p></div>
+        <div class="no-apod-msg"><p>${message}</p><p class="hint">Note: APOD availability varies over time; older entries may be missing. We show related NASA images when APOD is unavailable.</p></div>
       </div>
     `;
   }
