@@ -145,6 +145,45 @@
     `;
   }
 
+  // Render skeleton placeholders while loading
+  function renderSkeleton(count = 6) {
+    if (!gallery) return;
+    const container = document.createElement('div');
+    container.className = 'skeleton-grid';
+    for (let i = 0; i < count; i++) {
+      const card = document.createElement('div');
+      card.className = 'skeleton-card';
+      card.innerHTML = `
+        <div class="skeleton-thumb"></div>
+        <div class="skeleton-line long"></div>
+        <div class="skeleton-line medium"></div>
+        <div class="skeleton-line short"></div>
+      `;
+      container.appendChild(card);
+    }
+    gallery.innerHTML = '';
+    gallery.appendChild(container);
+  }
+
+  // Loading overlay show/hide
+  function showLoading(on = true, count = 6) {
+    try {
+      const ov = document.getElementById('loadingOverlay');
+      if (!ov) return;
+      if (on) {
+        ov.classList.add('show');
+        ov.setAttribute('aria-hidden', 'false');
+        // show skeletons in gallery for parity
+        renderSkeleton(count);
+      } else {
+        ov.classList.remove('show');
+        ov.setAttribute('aria-hidden', 'true');
+      }
+    } catch (e) {
+      console.warn('Loading overlay toggle failed', e);
+    }
+  }
+
   // Render a friendly astronaut SVG when APOD is unavailable for historic dates
   function renderAstronautPlaceholder(message = 'APOD not available for this date.') {
     if (!gallery) return;
@@ -534,6 +573,8 @@
         getImageBtn.dataset.prevText = getImageBtn.textContent;
           getImageBtn.textContent = 'Loading…';
         }
+      // Show loading overlay and skeletons
+      try { showLoading(true, count); } catch (e) {}
       if (selectedDate) {
         // APOD path via proxy
         setStatus('Fetching APOD…');
@@ -617,6 +658,8 @@
           delete getImageBtn.dataset.prevText;
         }
       }
+      // hide loading overlay in all cases
+      try { showLoading(false); } catch (e) {}
     }
   }
 
