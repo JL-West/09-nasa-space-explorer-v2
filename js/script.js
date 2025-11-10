@@ -51,33 +51,25 @@
     return { apodKey, omdbKey };
   }
 
-  // Return a masked key indicator and source
+  // Return which source is providing the APOD key (non-sensitive)
   function keySourceInfo() {
     const cfg = window.NASA_CONFIG || {};
     const ls = localStorage.getItem('api_key_nasa');
-    const apodKey = cfg.APOD_API_KEY || ls || 'DEMO_KEY';
     let source = 'DEMO_KEY';
     if (cfg.APOD_API_KEY) source = 'config.js';
     else if (ls) source = 'localStorage';
-    // mask key: show only last 4 chars
-    let masked = '';
-    try {
-      if (apodKey && apodKey !== 'DEMO_KEY') {
-        const visible = apodKey.slice(-4);
-        masked = `••••${visible}`;
-      } else {
-        masked = 'DEMO_KEY';
-      }
-    } catch (e) { masked = 'REDACTED'; }
-    return { source, masked };
+    return { source };
   }
 
-  // Update the visible masked key indicator text
+  // Update key indicator (no sensitive data shown). This intentionally does not
+  // render or expose API key values in the UI. The function is kept so other
+  // code can call it, but it will not display secret material.
   function updateKeyIndicator() {
     try {
-      const info = keySourceInfo();
-      const el = document.getElementById('keyIndicator');
-      if (el) el.textContent = `Key: ${info.source} (${info.masked})`;
+      // Intentionally do not render the key value. If a non-sensitive label is
+      // desired in future, we can expose: `Key source: config.js | localStorage | demo`.
+      // For now, keep the UI free of API key text.
+      return;
     } catch (e) { /* ignore */ }
   }
 
@@ -781,32 +773,10 @@
       console.warn('Could not show fun fact', e);
     }
 
-    // Create masked key indicator and add to header area
-    try {
-      const info = keySourceInfo();
-      const indicator = document.createElement('div');
-      indicator.id = 'keyIndicator';
-      indicator.className = 'key-indicator';
-      indicator.setAttribute('aria-hidden', 'false');
-      indicator.textContent = `Key: ${info.source} (${info.masked})`;
-      // Insert after funFact if present, else at top of container
-      if (funFactEl && funFactEl.parentNode) {
-        funFactEl.parentNode.insertBefore(indicator, funFactEl.nextSibling);
-      } else {
-        const container = document.querySelector('.container') || document.body;
-        container.insertBefore(indicator, container.firstChild);
-      }
-      // Also create a small source badge (shows which source served last request)
-      sourceBadge = document.createElement('div');
-      sourceBadge.id = 'sourceBadge';
-      sourceBadge.className = 'source-badge';
-      sourceBadge.setAttribute('aria-hidden', 'false');
-      sourceBadge.textContent = 'Source: unknown';
-      indicator.parentNode.insertBefore(sourceBadge, indicator.nextSibling);
-    } catch (e) {
-      // ignore indicator errors
-      console.warn('Failed to render key indicator', e);
-    }
+    // Note: we intentionally do NOT render API keys or masked key indicators in
+    // the visible UI to avoid exposing secrets. Key management remains available
+    // via the key manager inputs (saved to localStorage) and the debug overlay
+    // which indicates whether keys are set (not their values).
 
     // Wire key manager buttons (if present)
     if (saveKeysBtn) saveKeysBtn.addEventListener('click', () => {
