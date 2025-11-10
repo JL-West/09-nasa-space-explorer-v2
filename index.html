@@ -15,6 +15,19 @@
     <!-- Fun fact area (moved to top for visibility) -->
     <div id="funFact" class="fun-fact" aria-live="polite"></div>
 
+    <!-- Key manager: set API keys into localStorage (safer than committing to repo) -->
+    <div id="keyManager" class="key-manager" aria-hidden="false">
+      <label for="apodKeyInput">APOD API Key</label>
+      <input id="apodKeyInput" type="text" placeholder="Paste your NASA APOD API key (optional)" aria-label="NASA APOD API key" />
+      <label for="omdbKeyInput">OMDb API Key (optional)</label>
+      <input id="omdbKeyInput" type="text" placeholder="Paste OMDb API key" aria-label="OMDb API key" />
+      <div class="key-actions">
+        <button id="saveKeysBtn" type="button">Save keys to localStorage</button>
+        <button id="clearKeysBtn" type="button">Remove local keys</button>
+      </div>
+      <div id="keyHint" class="key-hint">Keys stored locally only. You can also use <code>config.js</code> for testing.</div>
+    </div>
+
     <div class="filters">
       <label for="dateSelect" class="sr-only">Select date</label>
       <input id="dateSelect" type="date" min="1995-06-16" max="2025-10-01" aria-label="Select a date (up to 2025-10-01)" />
