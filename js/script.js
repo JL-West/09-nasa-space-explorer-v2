@@ -45,6 +45,27 @@
     return { apodKey, omdbKey };
   }
 
+  // Return a masked key indicator and source
+  function keySourceInfo() {
+    const cfg = window.NASA_CONFIG || {};
+    const ls = localStorage.getItem('api_key_nasa');
+    const apodKey = cfg.APOD_API_KEY || ls || 'DEMO_KEY';
+    let source = 'DEMO_KEY';
+    if (cfg.APOD_API_KEY) source = 'config.js';
+    else if (ls) source = 'localStorage';
+    // mask key: show only last 4 chars
+    let masked = '';
+    try {
+      if (apodKey && apodKey !== 'DEMO_KEY') {
+        const visible = apodKey.slice(-4);
+        masked = `••••${visible}`;
+      } else {
+        masked = 'DEMO_KEY';
+      }
+    } catch (e) { masked = 'REDACTED'; }
+    return { source, masked };
+  }
+
   // Simple status helper (updates aria-live region)
   function setStatus(message) {
     if (!statusEl) return;
@@ -398,7 +419,22 @@
       return cached;
     }
     setStatus(`Fetching APOD for ${dateStr}…`);
+    const { apodKey } = getApiKeys();
     try {
+      // If a non-DEMO key is available client-side, prefer calling the APOD API directly
+      if (apodKey && apodKey !== 'DEMO_KEY') {
+        const url = `https://api.nasa.gov/planetary/apod?date=${encodeURIComponent(dateStr)}&api_key=${encodeURIComponent(apodKey)}`;
+        const resp = await fetch(url);
+        if (!resp.ok) {
+          const errText = await resp.text().catch(() => resp.statusText || 'error');
+          throw new Error(errText);
+        }
+        const data = await resp.json();
+        saveCache(cacheKeyName, data);
+        return data;
+      }
+
+      // Fallback to proxy (server-side) when no client key is present
       const resp = await fetch(`${APOD_PROXY_PATH}?date=${encodeURIComponent(dateStr)}`);
       if (!resp.ok) {
         const errText = await resp.text().catch(() => resp.statusText || 'error');
@@ -630,6 +666,26 @@
 
     // Show a random fun fact at top
     showRandomFunFact();
+
+    // Create masked key indicator and add to header area
+    try {
+      const info = keySourceInfo();
+      const indicator = document.createElement('div');
+      indicator.id = 'keyIndicator';
+      indicator.className = 'key-indicator';
+      indicator.setAttribute('aria-hidden', 'false');
+      indicator.textContent = `Key: ${info.source} (${info.masked})`;
+      // Insert after funFact if present, else at top of container
+      if (funFactEl && funFactEl.parentNode) {
+        funFactEl.parentNode.insertBefore(indicator, funFactEl.nextSibling);
+      } else {
+        const container = document.querySelector('.container') || document.body;
+        container.insertBefore(indicator, container.firstChild);
+      }
+    } catch (e) {
+      // ignore indicator errors
+      console.warn('Failed to render key indicator', e);
+    }
 
     // Event wiring
     if (getImageBtn) getImageBtn.addEventListener('click', handleFetchClick);
