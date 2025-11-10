@@ -544,6 +544,7 @@
           if (apod && apod.source === 'images-api-fallback') {
             setStatus(`APOD not found — showing a related NASA image (best effort).`);
             renderGallery([item]);
+            try { updateSourceBadge('images-api-fallback'); } catch (e) {}
             // Add a small banner above the gallery so users know it's a fallback
             if (statusEl) {
               const b = document.createElement('div');
@@ -761,6 +762,21 @@
 
   // Global error reporting: show in #status if available
   window.addEventListener('error', (e) => {
+    try { if (statusEl) statusEl.textContent = `Error: ${e.message || e}`; } catch (err) {}
+    console.error('Unhandled error', e);
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    try { if (statusEl) statusEl.textContent = `Error: ${e.reason || e}`; } catch (err) {}
+    console.error('Unhandled rejection', e);
+  });
+
+})();
+
+    console.error('Unhandled rejection', e);
+  });
+
+})();
+
     try { if (statusEl) statusEl.textContent = `Error: ${e.message || e}`; } catch (err) {}
     console.error('Unhandled error', e);
   });
