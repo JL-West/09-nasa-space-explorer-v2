@@ -33,8 +33,7 @@
   let lightboxMedia;
   let lightboxMeta;
   let funFactEl;
-  // on-page source selector element (auto/direct/proxy)
-  let sourceSelect;
+  
 
   // Lightbox focus tracking
   let lastFocusedBeforeLightbox = null;
@@ -66,18 +65,6 @@
       }
     } catch (e) { masked = 'REDACTED'; }
     return { source, masked };
-  }
-
-  // Update the small source badge shown on the page (keeps user informed)
-  let sourceBadge;
-  function updateSourceBadge(src, note) {
-    try {
-      if (!sourceBadge) return;
-      sourceBadge.textContent = `Source: ${src}${note ? ` — ${note}` : ''}`;
-      sourceBadge.dataset.source = src;
-    } catch (e) {
-      // ignore
-    }
   }
 
   // Simple status helper (updates aria-live region)
@@ -567,7 +554,6 @@
           if (apod && apod.source === 'images-api-fallback') {
             setStatus(`APOD not found — showing a related NASA image (best effort).`);
             renderGallery([item]);
-            try { updateSourceBadge('images-api-fallback'); } catch (e) {}
             // Add a small banner above the gallery so users know it's a fallback
             if (statusEl) {
               const b = document.createElement('div');
@@ -764,13 +750,7 @@
       });
     }
 
-    // If source selector changes, update the badge to reflect forced mode
-    if (sourceSelect) {
-      sourceSelect.addEventListener('change', () => {
-        const v = sourceSelect.value || 'auto';
-        try { updateSourceBadge(v, v === 'auto' ? 'auto' : 'forced'); } catch (e) {}
-      });
-    }
+    
 
     // Lightbox handlers
     if (lightboxBackdrop) {
@@ -819,4 +799,5 @@
   });
 
 })();
+
 

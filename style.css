@@ -371,16 +371,6 @@ button:hover {
   display: inline-block;
 }
 
-/* Small badge showing which source served the last APOD/search */
-.source-badge {
-  margin: 8px 8px 0 8px;
-  padding: 6px 10px;
-  background: rgba(3, 122, 255, 0.08);
-  color: #03366b;
-  border-radius: 6px;
-  font-size: 13px;
-  display: inline-block;
-}
 
 /* Screen-reader only helper */
 .sr-only {
