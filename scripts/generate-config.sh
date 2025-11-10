@@ -10,8 +10,8 @@ set -euo pipefail
 CONFIG_FILE="config.js"
 
 # Read from env or prompt
-NASA_KEY=${A8tgVmkQzQwHej4dPOLKkh1sGw2GAFJtrGpQ4b8A-}
-OMDB_KEY=${b079e78c-}
+NASA_KEY=${NASA_KEY:-}
+OMDB_KEY=${OMDB_KEY:-}
 
 if [ -z "$NASA_KEY" ]; then
   read -r -p "Enter NASA API key (or leave blank to use DEMO_KEY): " NASA_KEY
