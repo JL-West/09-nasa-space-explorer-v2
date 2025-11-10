@@ -33,6 +33,8 @@
   let lightboxMedia;
   let lightboxMeta;
   let funFactEl;
+  // on-page source selector element (auto/direct/proxy)
+  let sourceSelect;
 
   // Lightbox focus tracking
   let lastFocusedBeforeLightbox = null;
@@ -64,6 +66,18 @@
       }
     } catch (e) { masked = 'REDACTED'; }
     return { source, masked };
+  }
+
+  // Update the small source badge shown on the page (keeps user informed)
+  let sourceBadge;
+  function updateSourceBadge(src, note) {
+    try {
+      if (!sourceBadge) return;
+      sourceBadge.textContent = `Source: ${src}${note ? ` — ${note}` : ''}`;
+      sourceBadge.dataset.source = src;
+    } catch (e) {
+      // ignore
+    }
   }
 
   // Simple status helper (updates aria-live region)
@@ -421,8 +435,13 @@
     setStatus(`Fetching APOD for ${dateStr}…`);
     const { apodKey } = getApiKeys();
     try {
-      // If a non-DEMO key is available client-side, prefer calling the APOD API directly
-      if (apodKey && apodKey !== 'DEMO_KEY') {
+      // Respect on-page selector if present: auto/direct/proxy
+      const selector = (sourceSelect && sourceSelect.value) ? sourceSelect.value : 'auto';
+      const forceProxy = selector === 'proxy';
+      const forceDirect = selector === 'direct';
+
+      // If a non-DEMO key is available client-side and direct is allowed, call APOD API
+      if (!forceProxy && (forceDirect || (apodKey && apodKey !== 'DEMO_KEY'))) {
         const url = `https://api.nasa.gov/planetary/apod?date=${encodeURIComponent(dateStr)}&api_key=${encodeURIComponent(apodKey)}`;
         const resp = await fetch(url);
         if (!resp.ok) {
@@ -430,17 +449,21 @@
           throw new Error(errText);
         }
         const data = await resp.json();
+        // mark that we used the APOD API directly
+        try { updateSourceBadge('apod-api'); } catch (e) {}
         saveCache(cacheKeyName, data);
         return data;
       }
 
-      // Fallback to proxy (server-side) when no client key is present
+      // Otherwise use server-side proxy
       const resp = await fetch(`${APOD_PROXY_PATH}?date=${encodeURIComponent(dateStr)}`);
       if (!resp.ok) {
         const errText = await resp.text().catch(() => resp.statusText || 'error');
         throw new Error(errText);
       }
       const data = await resp.json();
+      // server-side proxy was used
+      try { updateSourceBadge('apod-proxy'); } catch (e) {}
       saveCache(cacheKeyName, data);
       return data;
     } catch (err) {
@@ -679,7 +702,8 @@
     lightboxClose = document.getElementById('lightboxClose');
     lightboxMedia = document.getElementById('lightboxMedia');
     lightboxMeta = document.getElementById('lightboxMeta');
-    funFactEl = document.getElementById('funFact');
+  funFactEl = document.getElementById('funFact');
+  sourceSelect = document.getElementById('sourceSelect');
 
     // Defensive checks
     if (!gallery) {
@@ -687,8 +711,13 @@
       return;
     }
 
-    // Show a random fun fact at top
-    showRandomFunFact();
+    // Show a random fun fact at top (ensure it's visible)
+    try {
+      if (funFactEl) funFactEl.style.display = '';
+      showRandomFunFact();
+    } catch (e) {
+      console.warn('Could not show fun fact', e);
+    }
 
     // Create masked key indicator and add to header area
     try {
@@ -705,13 +734,24 @@
         const container = document.querySelector('.container') || document.body;
         container.insertBefore(indicator, container.firstChild);
       }
+      // Also create a small source badge (shows which source served last request)
+      sourceBadge = document.createElement('div');
+      sourceBadge.id = 'sourceBadge';
+      sourceBadge.className = 'source-badge';
+      sourceBadge.setAttribute('aria-hidden', 'false');
+      sourceBadge.textContent = 'Source: unknown';
+      indicator.parentNode.insertBefore(sourceBadge, indicator.nextSibling);
     } catch (e) {
       // ignore indicator errors
       console.warn('Failed to render key indicator', e);
     }
 
     // Event wiring
-    if (getImageBtn) getImageBtn.addEventListener('click', handleFetchClick);
+    if (getImageBtn) {
+      // Attach both addEventListener and an onclick fallback to be robust
+      getImageBtn.addEventListener('click', handleFetchClick);
+      getImageBtn.onclick = handleFetchClick;
+    }
     if (clearCacheBtn) clearCacheBtn.addEventListener('click', handleClearCache);
 
     // Allow Enter to trigger fetch from query input
@@ -721,6 +761,14 @@
           e.preventDefault();
           handleFetchClick();
         }
+      });
+    }
+
+    // If source selector changes, update the badge to reflect forced mode
+    if (sourceSelect) {
+      sourceSelect.addEventListener('change', () => {
+        const v = sourceSelect.value || 'auto';
+        try { updateSourceBadge(v, v === 'auto' ? 'auto' : 'forced'); } catch (e) {}
       });
     }
 
@@ -762,21 +810,6 @@
 
   // Global error reporting: show in #status if available
   window.addEventListener('error', (e) => {
-    try { if (statusEl) statusEl.textContent = `Error: ${e.message || e}`; } catch (err) {}
-    console.error('Unhandled error', e);
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    try { if (statusEl) statusEl.textContent = `Error: ${e.reason || e}`; } catch (err) {}
-    console.error('Unhandled rejection', e);
-  });
-
-})();
-
-    console.error('Unhandled rejection', e);
-  });
-
-})();
-
     try { if (statusEl) statusEl.textContent = `Error: ${e.message || e}`; } catch (err) {}
     console.error('Unhandled error', e);
   });

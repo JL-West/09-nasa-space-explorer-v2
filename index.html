@@ -24,6 +24,13 @@
         <option value="6" selected>6 images</option>
         <option value="9">9 images</option>
       </select>
+      <!-- Source selector: auto = prefer client key when present, direct = force APOD API call, proxy = force server proxy -->
+      <label for="sourceSelect" class="sr-only">APOD source</label>
+      <select id="sourceSelect" aria-label="APOD source">
+        <option value="auto" selected>Source: Auto</option>
+        <option value="direct">Source: Direct (APOD API)</option>
+        <option value="proxy">Source: Server Proxy</option>
+      </select>
         <button id="getImageBtn" type="button">Fetch Space Images</button>
         <button id="clearCacheBtn" type="button">Clear Cache</button>
     </div>
