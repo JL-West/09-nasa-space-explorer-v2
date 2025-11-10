@@ -137,7 +137,7 @@ button:focus {
   border: 1px solid #ddd;
   border-radius: 4px;
   padding: 8px 10px;
-  cursor: pointer;
+  cursor: rocket;
 }
 
 .settings-panel {
@@ -400,6 +400,15 @@ button:focus {
   border-radius: 6px;
   font-size: 13px;
   display: inline-block;
+}
+
+/* Non-sensitive source label shown next to the fun fact */
+.source-label {
+  margin: 8px 20px 0 20px;
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  display: none;
 }
 
 /* Loading overlay and spinner */

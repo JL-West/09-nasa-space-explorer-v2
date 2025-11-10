@@ -33,6 +33,7 @@
   let lightboxMedia;
   let lightboxMeta;
   let funFactEl;
+  let sourceLabelEl;
   
   // key manager elements
   let apodKeyInput;
@@ -110,6 +111,22 @@
     statusEl.textContent = message;
     // also console log for debugging
     console.log('[status]', message);
+  }
+
+  // Non-sensitive UI: show which source provided the APOD (apod-api, apod-scrape, apod-wayback, images-api-fallback)
+  function setSourceLabel(source) {
+    try {
+      if (!sourceLabelEl) return;
+      if (!source) {
+        sourceLabelEl.textContent = '';
+        sourceLabelEl.style.display = 'none';
+        return;
+      }
+      sourceLabelEl.textContent = `Source: ${source}`;
+      sourceLabelEl.style.display = '';
+    } catch (e) {
+      // ignore
+    }
   }
 
   // LocalStorage cache helpers
@@ -607,6 +624,8 @@
           // If the proxy returned an images-api fallback, show a small badge and message
           if (apod && apod.source === 'images-api-fallback') {
             setStatus(`APOD not found — showing a related NASA image (best effort).`);
+            // indicate source to the user (non-sensitive)
+            setSourceLabel(apod.source || 'images-api-fallback');
             renderGallery([item]);
             // Add a small banner above the gallery so users know it's a fallback
             if (statusEl) {
@@ -618,6 +637,8 @@
           } else {
             renderGallery([item]);
             setStatus(`APOD loaded for ${selectedDate}`);
+            // indicate source when APOD loaded
+            setSourceLabel(apod.source || 'apod-api');
           }
         } catch (err) {
           // On any APOD fetch failure, attempt a related NASA Images API search as a best-effort fallback
@@ -636,6 +657,7 @@
                 gallery.insertAdjacentElement('beforebegin', b);
               }
               setStatus('Showing related NASA images because APOD could not be retrieved.');
+              setSourceLabel('images-api');
             } else {
               // Nothing found — show astronaut placeholder as gentle fallback
               renderAstronautPlaceholder('APOD not available for this date.');
@@ -653,6 +675,7 @@
         const items = await fetchImagesForQuery(query || 'space', count);
         renderGallery(items);
         setStatus(`Found ${items.length} results for "${query || 'space'}"`);
+        setSourceLabel('images-api');
       }
     } catch (err) {
       console.error('handleFetchClick error', err);
@@ -739,6 +762,7 @@
     lightboxMedia = document.getElementById('lightboxMedia');
     lightboxMeta = document.getElementById('lightboxMeta');
     funFactEl = document.getElementById('funFact');
+  sourceLabelEl = document.getElementById('sourceLabel');
     // key manager elements
     apodKeyInput = document.getElementById('apodKeyInput');
     omdbKeyInput = document.getElementById('omdbKeyInput');
@@ -818,6 +842,8 @@
     };
 
     setStatus('Ready');
+    // Clear source label initially
+    try { setSourceLabel(''); } catch (e) {}
   }
 
   if (document.readyState === 'loading') {
