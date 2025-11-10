@@ -34,6 +34,11 @@
   let lightboxMeta;
   let funFactEl;
   
+  // key manager elements
+  let apodKeyInput;
+  let omdbKeyInput;
+  let saveKeysBtn;
+  let clearKeysBtn;
 
   // Lightbox focus tracking
   let lastFocusedBeforeLightbox = null;
@@ -65,6 +70,46 @@
       }
     } catch (e) { masked = 'REDACTED'; }
     return { source, masked };
+  }
+
+  // Update the visible masked key indicator text
+  function updateKeyIndicator() {
+    try {
+      const info = keySourceInfo();
+      const el = document.getElementById('keyIndicator');
+      if (el) el.textContent = `Key: ${info.source} (${info.masked})`;
+    } catch (e) { /* ignore */ }
+  }
+
+  // Save keys from inputs into localStorage
+  function saveKeysToLocalStorage() {
+    try {
+      const a = apodKeyInput && apodKeyInput.value && apodKeyInput.value.trim();
+      const o = omdbKeyInput && omdbKeyInput.value && omdbKeyInput.value.trim();
+      if (a) localStorage.setItem('api_key_nasa', a);
+      if (o) localStorage.setItem('api_key_omdb', o);
+      updateKeyIndicator();
+      setStatus('API keys saved locally.');
+      return true;
+    } catch (e) {
+      console.warn('Failed to save keys', e);
+      setStatus('Failed to save keys.');
+      return false;
+    }
+  }
+
+  function clearLocalKeys() {
+    try {
+      localStorage.removeItem('api_key_nasa');
+      localStorage.removeItem('api_key_omdb');
+      if (apodKeyInput) apodKeyInput.value = '';
+      if (omdbKeyInput) omdbKeyInput.value = '';
+      updateKeyIndicator();
+      setStatus('Local API keys removed.');
+    } catch (e) {
+      console.warn('Failed to clear keys', e);
+      setStatus('Failed to clear keys.');
+    }
   }
 
   // Simple status helper (updates aria-live region)
@@ -455,19 +500,13 @@
   async function fetchApodForDate(dateStr) {
     const cacheKeyName = `apod_${dateStr}`;
     const cached = loadCache(cacheKeyName, APOD_CACHE_TTL_MS);
-    if (cached) {
-      return cached;
-    }
+    if (cached) return cached;
+
     setStatus(`Fetching APOD for ${dateStr}…`);
     const { apodKey } = getApiKeys();
     try {
-      // Respect on-page selector if present: auto/direct/proxy
-      const selector = (sourceSelect && sourceSelect.value) ? sourceSelect.value : 'auto';
-      const forceProxy = selector === 'proxy';
-      const forceDirect = selector === 'direct';
-
-      // If a non-DEMO key is available client-side and direct is allowed, call APOD API
-      if (!forceProxy && (forceDirect || (apodKey && apodKey !== 'DEMO_KEY'))) {
+      // If a non-DEMO key is available client-side, call the APOD API directly
+      if (apodKey && apodKey !== 'DEMO_KEY') {
         const url = `https://api.nasa.gov/planetary/apod?date=${encodeURIComponent(dateStr)}&api_key=${encodeURIComponent(apodKey)}`;
         const resp = await fetch(url);
         if (!resp.ok) {
@@ -475,21 +514,17 @@
           throw new Error(errText);
         }
         const data = await resp.json();
-        // mark that we used the APOD API directly
-        try { updateSourceBadge('apod-api'); } catch (e) {}
         saveCache(cacheKeyName, data);
         return data;
       }
 
-      // Otherwise use server-side proxy
+      // Otherwise fall back to the server-side proxy
       const resp = await fetch(`${APOD_PROXY_PATH}?date=${encodeURIComponent(dateStr)}`);
       if (!resp.ok) {
         const errText = await resp.text().catch(() => resp.statusText || 'error');
         throw new Error(errText);
       }
       const data = await resp.json();
-      // server-side proxy was used
-      try { updateSourceBadge('apod-proxy'); } catch (e) {}
       saveCache(cacheKeyName, data);
       return data;
     } catch (err) {
@@ -607,37 +642,31 @@
             setStatus(`APOD loaded for ${selectedDate}`);
           }
         } catch (err) {
-          // For historic dates earlier than 2003-04-28 show the astronaut placeholder
-          if (selectedDate && typeof selectedDate === 'string' && selectedDate < '2003-04-28') {
-            renderAstronautPlaceholder('APOD not available for this date (before 2003).');
-            setStatus('APOD not available. Showing a friendly placeholder for historic dates.');
-          } else {
-            // For dates on/after 2003-04-28, try a client-side Images API search as a best-effort fallback
-            try {
-              setStatus('APOD not found — attempting a related NASA images search...');
-              const year = (selectedDate || '').slice(0, 4) || '';
-              const fallbackQuery = year ? `${year} apod` : 'space';
-              const fallbackItems = await fetchImagesForQuery(fallbackQuery, parseInt(numSelect.value, 10) || 6);
-              if (fallbackItems && fallbackItems.length) {
-                // show a banner explaining this is a fallback
-                renderGallery(fallbackItems);
-                if (statusEl) {
-                  const b = document.createElement('div');
-                  b.className = 'fallback-banner';
-                  b.textContent = 'APOD not available for this date — showing related NASA images (best effort).';
-                  gallery.insertAdjacentElement('beforebegin', b);
-                }
-                setStatus('Showing related NASA images because APOD could not be retrieved.');
-              } else {
-                // Nothing found — show astronaut placeholder as gentle fallback
-                renderAstronautPlaceholder('APOD not available for this date.');
-                setStatus('APOD not available and no related images found.');
+          // On any APOD fetch failure, attempt a related NASA Images API search as a best-effort fallback
+          try {
+            setStatus('APOD not found — attempting a related NASA images search...');
+            const year = (selectedDate || '').slice(0, 4) || '';
+            const fallbackQuery = year ? `${year} apod` : 'space';
+            const fallbackItems = await fetchImagesForQuery(fallbackQuery, parseInt(numSelect.value, 10) || 6);
+            if (fallbackItems && fallbackItems.length) {
+              // show a banner explaining this is a fallback
+              renderGallery(fallbackItems);
+              if (statusEl) {
+                const b = document.createElement('div');
+                b.className = 'fallback-banner';
+                b.textContent = 'APOD not available for this date — showing related NASA images (best effort).';
+                gallery.insertAdjacentElement('beforebegin', b);
               }
-            } catch (innerErr) {
-              // If images search fails, show the astronaut placeholder
+              setStatus('Showing related NASA images because APOD could not be retrieved.');
+            } else {
+              // Nothing found — show astronaut placeholder as gentle fallback
               renderAstronautPlaceholder('APOD not available for this date.');
-              setStatus('APOD not available. Showing placeholder.');
+              setStatus('APOD not available and no related images found.');
             }
+          } catch (innerErr) {
+            // If images search fails, show the astronaut placeholder
+            renderAstronautPlaceholder('APOD not available for this date.');
+            setStatus('APOD not available. Showing placeholder.');
           }
         }
       } else {
@@ -731,8 +760,12 @@
     lightboxClose = document.getElementById('lightboxClose');
     lightboxMedia = document.getElementById('lightboxMedia');
     lightboxMeta = document.getElementById('lightboxMeta');
-  funFactEl = document.getElementById('funFact');
-  sourceSelect = document.getElementById('sourceSelect');
+    funFactEl = document.getElementById('funFact');
+    // key manager elements
+    apodKeyInput = document.getElementById('apodKeyInput');
+    omdbKeyInput = document.getElementById('omdbKeyInput');
+    saveKeysBtn = document.getElementById('saveKeysBtn');
+    clearKeysBtn = document.getElementById('clearKeysBtn');
 
     // Defensive checks
     if (!gallery) {
@@ -774,6 +807,13 @@
       // ignore indicator errors
       console.warn('Failed to render key indicator', e);
     }
+
+    // Wire key manager buttons (if present)
+    if (saveKeysBtn) saveKeysBtn.addEventListener('click', () => {
+      const ok = saveKeysToLocalStorage();
+      if (ok) updateKeyIndicator();
+    });
+    if (clearKeysBtn) clearKeysBtn.addEventListener('click', clearLocalKeys);
 
     // Event wiring
     if (getImageBtn) {
