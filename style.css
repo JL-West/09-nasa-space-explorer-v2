@@ -1,4 +1,18 @@
 /* Global reset & box sizing */
+:root {
+  --nasa-blue: #0b3d91;
+  --nasa-blue-2: #0f57b7;
+  --nasa-dark: #071827;
+  --nasa-mid: #0b2a44;
+  --nasa-accent: #ff2d55; /* NASA accent */
+  --bg: linear-gradient(180deg,var(--nasa-dark), #041527 140%);
+  --surface: rgba(255,255,255,0.03);
+  --muted: #9fb7db;
+  --max-width: 1200px;
+  --radius: 10px;
+  --gap: 18px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -7,78 +21,89 @@
 
 /* Base page styles */
 body {
-  font-family: Arial, sans-serif;
-  background-color: #071b2f; /* deep navy like NASA branding */
+  font-family: Inter, "Helvetica Neue", Arial, Helvetica, sans-serif;
+  background: var(--bg);
   color: #f7fbff;
-  padding: 20px;
+  padding: 24px;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
 }
 
 /* Centered container */
 .container {
-  max-width: 1200px;
+  max-width: var(--max-width);
   margin: 0 auto;
+  padding: 12px;
 }
 
 /* Header */
 .site-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding-top: 20px;
-  padding-bottom: 20px;
+  gap: 14px;
+  padding: 18px 20px;
   margin-bottom: 20px;
-  background: linear-gradient(90deg,#051426 0%, #08243b 100%);
-  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(11,61,145,0.12), rgba(15,87,183,0.06));
+  border-radius: var(--radius);
+  box-shadow: 0 8px 28px rgba(2,10,26,0.6);
 }
 
 h1 {
-  font-family: Verdana, sans-serif;
-  font-weight: bold;
+  font-weight: 700;
+  font-size: 28px;
   color: #fff;
+  letter-spacing: 0.6px;
 }
 
 /* Logo */
 .logo {
-  width: 120px;
-  margin-right: 15px;
-  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.4));
+  width: 110px;
+  height: auto;
+  margin-left: 6px;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45));
 }
 
 /* Date‐picker & button row */
 .filters {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   justify-content: center;
   margin-bottom: 20px;
-  padding: 0 20px;
+  padding: 8px 8px;
 }
 
 /* Inputs and buttons */
 input[type="date"],
 button {
-  font-family: Arial, sans-serif;
-  font-weight: normal;
-  color: #07305f;
-  padding: 10px 15px;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 4px;
-  font-size: 16px;
-  line-height: 1.4;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1.2;
   width: 100%;
-  background: rgba(255,255,255,0.03);
+  background: var(--surface);
   color: #e6f2ff;
 }
 
 /* Button specific */
 button {
-  background-color: #0b3d91; /* NASA blue */
+  background-color: var(--nasa-blue);
   color: #fff;
   cursor: pointer;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: none;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 8px 20px rgba(11,61,145,0.18);
 }
 button:hover {
-  background-color: #0f57b7;
+  background-color: var(--nasa-blue-2);
+  transform: translateY(-2px);
+}
+button:focus {
+  outline: 3px solid rgba(15,87,183,0.16);
+  outline-offset: 3px;
 }
 
 /* Stack horizontally on wider screens */
@@ -97,12 +122,13 @@ button:hover {
 /* Controls: query input and count select */
 .filters input[type="text"],
 .filters select {
-  font-family: Arial, sans-serif;
+  font-family: inherit;
   padding: 10px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-  color: #333;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  font-size: 15px;
+  color: #e8f4ff;
+  background: rgba(255,255,255,0.02);
 }
 
 /* Settings toggle and panel (hidden by default) */
@@ -149,7 +175,7 @@ button:hover {
   align-items: center;
   justify-content: center;
   padding: 40px;
-  color: #333;
+  color: var(--muted);
 }
 
 .orbit-container {
@@ -170,13 +196,13 @@ button:hover {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 36px;
-  height: 36px;
-  margin-left: -18px;
-  margin-top: -18px;
-  background: radial-gradient(circle at 30% 30%, #7fb3ff, #155b9a);
+  width: 44px;
+  height: 44px;
+  margin-left: -22px;
+  margin-top: -22px;
+  background: radial-gradient(circle at 30% 30%, #8fc7ff, #155b9a);
   border-radius: 50%;
-  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
   z-index: 2;
 }
 
@@ -193,28 +219,25 @@ button:hover {
 
 .liftoff-text {
   font-size: 18px;
-  color: #444;
-  font-weight: bold;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 /* Gallery flex container */
 .gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--gap);
   padding: 20px;
-  justify-content: center;
+  align-items: start;
 }
 
 /* Gallery items */
 .gallery-item {
-  flex: 1 1 100%;  /* full width by default */
-  min-width: 280px;
-  max-width: 500px;
-  background: linear-gradient(180deg, #071b2f, #0b2a44);
+  background: linear-gradient(180deg, rgba(11,61,145,0.06), rgba(11,42,68,0.04));
   padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(2,10,26,0.6);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -229,9 +252,9 @@ button:hover {
 
 .gallery-item img {
   width: 100%;
-  height: 200px;
+  height: 220px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .gallery-item p {
@@ -260,10 +283,10 @@ button:hover {
   justify-content: center;
   gap: 18px;
   padding: 36px;
-  background: linear-gradient(180deg, #091828, #061422);
-  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(2,6,12,0.6), rgba(4,20,34,0.4));
+  border-radius: 12px;
   color: #dbeeff;
-  box-shadow: 0 12px 36px rgba(2, 18, 36, 0.6);
+  box-shadow: 0 18px 46px rgba(0,0,0,0.6);
 }
 .no-apod-placeholder .svg-wrap {
   width: 220px;
@@ -289,15 +312,15 @@ button:hover {
 
 /* Banner shown when images-api fallback is used */
 .fallback-banner {
-  background: linear-gradient(90deg, #0b3d91, #0f57b7);
+  background: linear-gradient(90deg, var(--nasa-blue), var(--nasa-blue-2));
   color: #fff;
-  padding: 8px 12px;
-  border-radius: 6px;
+  padding: 10px 14px;
+  border-radius: 8px;
   margin: 12px auto;
   max-width: 980px;
   text-align: center;
   font-size: 14px;
-  box-shadow: 0 12px 30px rgba(3,61,145,0.18);
+  box-shadow: 0 18px 40px rgba(11,61,145,0.14);
 }
 
 /* metadata under each gallery item */
@@ -320,19 +343,20 @@ button:hover {
 .lightbox-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: radial-gradient(circle at 30% 30%, rgba(2,6,12,0.85), rgba(0,0,0,0.9));
 }
 .lightbox-content {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(90%, 900px);
-  background: #fff;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-  max-height: 90vh;
+  width: min(96%, 1100px);
+  background: linear-gradient(180deg, rgba(3,12,28,0.98), rgba(6,18,34,0.96));
+  color: #fff;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  max-height: 92vh;
   overflow: auto;
 }
 .lightbox-close {
@@ -353,26 +377,26 @@ button:hover {
 .lightbox-meta {
   margin-top: 8px;
   font-size: 14px;
-  color: #333;
+  color: #dbeeff;
 }
 
 /* Fun-fact area */
 .fun-fact {
-  margin: 18px 20px;
+  margin: 14px 12px;
   padding: 12px 14px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 10px;
   color: #dbeeff;
   font-size: 15px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
 }
 
 /* Key indicator (masked) */
 .key-indicator {
   margin: 8px 20px 0 20px;
   padding: 6px 10px;
-  background: rgba(11,61,145,0.06);
-  color: #07305f;
+  background: rgba(11,61,145,0.04);
+  color: var(--muted);
   border-radius: 6px;
   font-size: 13px;
   display: inline-block;
