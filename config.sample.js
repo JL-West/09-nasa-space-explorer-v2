@@ -3,8 +3,8 @@
 
 window.NASA_CONFIG = {
   // Your NASA API key for APOD and other Open APIs
-  APOD_API_KEY: 'DEMO_KEY',
+  APOD_API_KEY: 'A8tgVmkQzQwHej4dPOLKkh1sGw2GAFJtrGpQ4b8A',
 
   // Your OMDb API key (optional)
-  OMDB_API_KEY: ''
+  OMDB_API_KEY: 'b079e78c'
 };
