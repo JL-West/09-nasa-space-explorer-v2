@@ -274,12 +274,19 @@
     }
 
   // Use the existing #gallery element as the grid container so the CSS
-  // grid rules defined for `.gallery` apply. Avoid creating an extra wrapper
-  // which prevented the layout from showing multiple items correctly.
+  // grid rules defined for `.gallery` apply. Clear any previous content
+  // before adding new items so we don't get duplicates or leftover skeletons.
   const container = gallery; // reuse the DOM node provided by the page
+  container.innerHTML = '';
 
+    const seenKeys = new Set();
     items.forEach((item, idx) => {
-      const thumb = item.thumbnail || item.url || '';
+      // Skip duplicate items by url/nasa_id to avoid rendering the same image twice
+      const uniqueKey = (item.url || item.thumbnail || item.nasa_id || item.title || '').toString();
+      if (!uniqueKey || seenKeys.has(uniqueKey)) return;
+      seenKeys.add(uniqueKey);
+  const placeholderThumb = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="100%" height="100%" fill="%2308122a"/><text x="50%" y="50%" fill="%23fff" font-size="18" text-anchor="middle" dy=".3em">Image unavailable</text></svg>';
+  const thumb = item.thumbnail || item.url || placeholderThumb;
       const title = item.title || 'Untitled';
       const date = item.date || '';
       const center = item.center || '';
