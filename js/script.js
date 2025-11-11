@@ -926,7 +926,6 @@
   funFactEl = document.getElementById('funFact');
   // non-sensitive API base indicator (helps when using Live Preview vs backend)
   const apiBaseIndicator = document.getElementById('apiBaseIndicator');
-  const dateExamples = document.getElementById('dateExamples');
   sourceLabelEl = document.getElementById('sourceLabel');
     // key manager elements
     apodKeyInput = document.getElementById('apodKeyInput');
@@ -960,15 +959,8 @@
         const dd = String(today.getDate()).padStart(2, '0');
         if (dateSelect && !dateSelect.value) dateSelect.value = `${yyyy}-${mm}-${dd}`;
       } catch (e) {}
-      // Wire up example date selector to populate the date input
-      try {
-        if (dateExamples && dateSelect) {
-          dateExamples.addEventListener('change', (ev) => {
-            const v = ev.target.value;
-            if (v) dateSelect.value = v;
-          });
-        }
-      } catch (e) {}
+      // No example date selector is present by default. Keep date input
+      // initialization minimal so the page works in constrained dev hosts.
     } catch (e) {
       console.warn('Could not show fun fact', e);
     }

@@ -23,16 +23,7 @@
     <div class="filters">
         <label for="dateSelect" class="sr-only">Select date</label>
     <input id="dateSelect" type="date" min="1995-06-16" aria-label="Select a date (YYYY-MM-DD)" />
-        <label for="dateExamples" class="sr-only">Example dates</label>
-        <select id="dateExamples" aria-label="Example APOD dates" title="Example APOD dates">
-          <option value="">Examples</option>
-          <option value="2003-04-28">2003-04-28 (Soyuz rollout)</option>
-          <option value="2025-10-01">2025-10-01</option>
-          <option value="2025-09-01">2025-09-01</option>
-          <option value="2020-01-01">2020-01-01</option>
-          <option value="2015-07-14">2015-07-14</option>
-          <option value="1995-06-16">1995-06-16 (first APOD)</option>
-        </select>
+        <!-- Example dates removed to avoid runtime issues in some dev environments -->
       <input type="text" id="queryInput" placeholder="Search (e.g. nebula, mars, galaxy)" aria-label="Search term" />
       <select id="numSelect" aria-label="Number of images">
         <option value="3">3 images</option>
