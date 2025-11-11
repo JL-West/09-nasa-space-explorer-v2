@@ -124,7 +124,7 @@ button:focus {
 .filters select {
   font-family: inherit;
   padding: 10px 12px;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(224, 30, 30, 0.718);
   border-radius: 8px;
   font-size: 15px;
   /* Make dropdown font high-contrast and NASA-branded */
