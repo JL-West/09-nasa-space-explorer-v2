@@ -273,6 +273,7 @@ button:focus {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer; /* make whole tile clickable */
 }
 
 /* Three columns on wider screens */

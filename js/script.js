@@ -448,15 +448,21 @@
       container.appendChild(node);
       current++;
     }
-    // Attach click and keyboard handlers to open lightbox
-    container.querySelectorAll('.gallery-item').forEach(el => {
-      el.addEventListener('click', () => openLightbox(el._meta));
-      el.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openLightbox(el._meta);
-        }
-      });
+    // Attach click and keyboard handlers to open lightbox.
+    // Use event delegation so clicks on inner elements still open the modal.
+    container.addEventListener('click', (e) => {
+      const card = e.target.closest && e.target.closest('.gallery-item');
+      if (card && card._meta) {
+        openLightbox(card._meta);
+      }
+    });
+    container.addEventListener('keydown', (e) => {
+      const card = e.target.closest && e.target.closest('.gallery-item');
+      if (!card) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openLightbox(card._meta);
+      }
     });
   }
 
@@ -917,9 +923,10 @@
     lightboxClose = document.getElementById('lightboxClose');
     lightboxMedia = document.getElementById('lightboxMedia');
     lightboxMeta = document.getElementById('lightboxMeta');
-    funFactEl = document.getElementById('funFact');
+  funFactEl = document.getElementById('funFact');
   // non-sensitive API base indicator (helps when using Live Preview vs backend)
   const apiBaseIndicator = document.getElementById('apiBaseIndicator');
+  const dateExamples = document.getElementById('dateExamples');
   sourceLabelEl = document.getElementById('sourceLabel');
     // key manager elements
     apodKeyInput = document.getElementById('apodKeyInput');
@@ -945,6 +952,23 @@
         apiBaseIndicator.style.display = '';
         try { apiBaseIndicator.textContent = `API base: ${API_BASE}`; } catch (e) { /* ignore */ }
       }
+      // Set the date picker default to today (YYYY-MM-DD) so users can fetch today's APOD quickly
+      try {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        if (dateSelect && !dateSelect.value) dateSelect.value = `${yyyy}-${mm}-${dd}`;
+      } catch (e) {}
+      // Wire up example date selector to populate the date input
+      try {
+        if (dateExamples && dateSelect) {
+          dateExamples.addEventListener('change', (ev) => {
+            const v = ev.target.value;
+            if (v) dateSelect.value = v;
+          });
+        }
+      } catch (e) {}
     } catch (e) {
       console.warn('Could not show fun fact', e);
     }
@@ -1030,5 +1054,6 @@
   });
 
 })();
+
 
 

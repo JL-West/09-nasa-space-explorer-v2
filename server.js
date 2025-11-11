@@ -50,16 +50,57 @@ async function resolveAssetByNasaId(nasaId) {
     const res = await axios.get(url, { timeout: 15000 });
     if (res.status !== 200 || !res.data || !res.data.collection) return null;
     const items = res.data.collection.items || [];
-    // Prefer mp4 if present, otherwise the largest image (heuristic: last image)
+    // Prefer mp4 if present
     const mp4 = items.find(i => i.href && i.href.endsWith('.mp4'));
     if (mp4 && mp4.href) {
       const out = { best: mp4.href, items, type: 'video', source: 'images-asset' };
       cacheSet(cacheKey, out, 24 * 60 * 60 * 1000);
       return out;
     }
-    // images
+
+    // images: prefer the largest image by Content-Length when possible.
     const images = items.filter(i => i.href && i.href.match(/\.(jpg|jpeg|png|gif)$/i));
-    const best = images.length ? images[images.length - 1].href : null;
+    if (!images.length) {
+      const out = { best: null, items, type: 'image', source: 'images-asset' };
+      cacheSet(cacheKey, out, 24 * 60 * 60 * 1000);
+      return out;
+    }
+
+    // Helper to HEAD a URL and return content-length (0 on error)
+    async function probeSize(url) {
+      try {
+        const r = await axios.head(url, { timeout: 8000, maxRedirects: 5 });
+        const len = r.headers && (r.headers['content-length'] || r.headers['Content-Length']);
+        return len ? parseInt(len, 10) : 0;
+      } catch (err) {
+        return 0;
+      }
+    }
+
+    // Probe images in small batches to limit concurrent outbound requests.
+    const candidates = images.map(i => i.href);
+    const concurrency = 6;
+    const sizes = {};
+    for (let i = 0; i < candidates.length; i += concurrency) {
+      const batch = candidates.slice(i, i + concurrency);
+      const results = await Promise.all(batch.map(url => probeSize(url)));
+      batch.forEach((url, idx) => { sizes[url] = results[idx] || 0; });
+    }
+
+    // Choose the image with the largest reported size; fall back to heuristics
+    const entries = Object.keys(sizes);
+    let best = null;
+    if (entries.length) {
+      entries.sort((a, b) => (sizes[b] || 0) - (sizes[a] || 0));
+      best = entries[0];
+    }
+
+    if (!best) {
+      // fallback: prefer names with orig/hires/large hints or the last image
+      const prefer = images.find(it => /orig|large|hires|_o\.|_orig|_hires/i.test(it.href));
+      best = (prefer && prefer.href) || (images[images.length - 1].href);
+    }
+
     const out = { best: best || null, items, type: 'image', source: 'images-asset' };
     cacheSet(cacheKey, out, 24 * 60 * 60 * 1000);
     return out;
