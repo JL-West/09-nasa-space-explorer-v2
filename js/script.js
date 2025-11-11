@@ -273,9 +273,10 @@
       return;
     }
 
-    // Build gallery HTML
-    const container = document.createElement('div');
-    container.className = 'gallery-grid';
+  // Use the existing #gallery element as the grid container so the CSS
+  // grid rules defined for `.gallery` apply. Avoid creating an extra wrapper
+  // which prevented the layout from showing multiple items correctly.
+  const container = gallery; // reuse the DOM node provided by the page
 
     items.forEach((item, idx) => {
       const thumb = item.thumbnail || item.url || '';
@@ -382,10 +383,6 @@
 
       container.appendChild(card);
     });
-
-    gallery.innerHTML = '';
-    gallery.appendChild(container);
-
     // Attach click and keyboard handlers to open lightbox
     container.querySelectorAll('.gallery-item').forEach(el => {
       el.addEventListener('click', () => openLightbox(el._meta));

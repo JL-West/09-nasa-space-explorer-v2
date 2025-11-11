@@ -17,6 +17,7 @@ const app = express();
 app.use(cors());
 
 const PORT = process.env.PORT || 8000;
+const BIND_ADDR = process.env.BIND_ADDR || '0.0.0.0';
 const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 
 // Simple in-memory cache: { key: { expires: ms, data: any } }
@@ -305,8 +306,31 @@ app.get('/image-proxy', async (req, res) => {
 // Serve static files from the project root so index.html works when visiting the server
 app.use(express.static(path.join(__dirname)));
 
-app.listen(PORT, () => {
+// Lightweight health endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', pid: process.pid, env: process.env.NODE_ENV || 'development' });
+});
+
+// Log network interfaces to help developers find a reachable host
+function logNetworkInfo() {
+  try {
+    const os = require('os');
+    const ifaces = os.networkInterfaces();
+    const ips = [];
+    Object.keys(ifaces).forEach((name) => {
+      ifaces[name].forEach((iface) => {
+        if (iface.family === 'IPv4' && !iface.internal) ips.push({ iface: name, address: iface.address });
+      });
+    });
+    console.log('Network addresses:', ips);
+  } catch (e) {
+    // ignore
+  }
+}
+
+app.listen(PORT, BIND_ADDR, () => {
   // eslint-disable-next-line no-console
-  console.log(`APOD proxy server listening on http://localhost:${PORT}`);
+  console.log(`APOD proxy server listening on http://${BIND_ADDR}:${PORT}`);
+  logNetworkInfo();
 });
 
