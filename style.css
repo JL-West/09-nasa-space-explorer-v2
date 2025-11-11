@@ -128,7 +128,7 @@ button:focus {
   border-radius: 8px;
   font-size: 15px;
   /* Make dropdown font high-contrast and NASA-branded */
-  color: #ffffff; /* white text */
+  color: #b32626; /* white text */
   background: linear-gradient(90deg, var(--nasa-blue), var(--nasa-blue-2));
 }
 .filters input[type="text"] {
