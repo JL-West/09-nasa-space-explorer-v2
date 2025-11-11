@@ -355,11 +355,12 @@
               const candidate2 = itemMeta.thumbnail || itemMeta.url || '';
               if (candidate2) {
                 try {
-                  const prox = `${window.location.origin}/image-proxy?url=${encodeURIComponent(candidate2)}`;
+                  // Use server-side image proxy when direct hotlinking or CORS fails.
+                  const prox = `${IMAGE_PROXY_PATH}?url=${encodeURIComponent(candidate2)}`;
                   img.src = prox;
                   return;
                 } catch (e) {
-                  // ignore
+                  // ignore and continue to placeholder
                 }
               }
 
@@ -953,6 +954,12 @@
   });
   window.addEventListener('unhandledrejection', (e) => {
     try { if (statusEl) statusEl.textContent = `Error: ${e.reason || e}`; } catch (err) {}
+    console.error('Unhandled rejection', e);
+  });
+
+})();
+
+
     console.error('Unhandled rejection', e);
   });
 
