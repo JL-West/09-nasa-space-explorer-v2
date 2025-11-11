@@ -266,12 +266,17 @@
 
   // Render gallery items. items: array of objects with fields:
   // { title, url, thumbnail, media_type, date, nasa_id, description, photographer, center, keywords }
-  function renderGallery(items) {
+  function renderGallery(items, desiredCount) {
     if (!gallery) return;
     if (!items || !items.length) {
       renderPlaceholder('No images found for your query.');
       return;
     }
+
+    // Determine how many tiles to show. If desiredCount is provided, pad
+    // with placeholders to reach that count. Otherwise show as many items as
+    // were returned.
+    const count = (typeof desiredCount === 'number' && desiredCount > 0) ? desiredCount : items.length;
 
   // Use the existing #gallery element as the grid container so the CSS
   // grid rules defined for `.gallery` apply. Clear any previous content
@@ -286,8 +291,8 @@
       const uniqueKey = (item.url || item.thumbnail || item.nasa_id || item.title || `__idx_${idx}`).toString();
       if (seenKeys.has(uniqueKey)) return;
       seenKeys.add(uniqueKey);
-  const placeholderThumb = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="100%" height="100%" fill="%2308122a"/><text x="50%" y="50%" fill="%23fff" font-size="18" text-anchor="middle" dy=".3em">Image unavailable</text></svg>';
-  const thumb = item.thumbnail || item.url || placeholderThumb;
+      const placeholderThumb = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="100%" height="100%" fill="%2308122a"/><text x="50%" y="50%" fill="%23fff" font-size="18" text-anchor="middle" dy=".3em">Image unavailable</text></svg>';
+      const thumb = item.thumbnail || item.url || placeholderThumb;
       const title = item.title || 'Untitled';
       const date = item.date || '';
       const center = item.center || '';
@@ -391,6 +396,21 @@
 
       container.appendChild(card);
     });
+
+    // If we need to pad to reach `count`, add placeholder cards
+    let current = container.querySelectorAll('.gallery-item').length;
+    while (current < count) {
+      const phHtml = `
+        <article class="gallery-item placeholder-item">
+          <div class="thumb-wrap">
+            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='260'><rect width='100%' height='100%' fill='%2308122a'/><text x='50%' y='50%' fill='%23fff' font-size='18' text-anchor='middle' dy='.3em'>No image</text></svg>" alt="placeholder" />
+          </div>
+          <div class="caption"><h3 class="title">No image</h3><p class="desc">No result available</p></div>
+        </article>
+      `;
+      container.insertAdjacentHTML('beforeend', phHtml);
+      current++;
+    }
     // Attach click and keyboard handlers to open lightbox
     container.querySelectorAll('.gallery-item').forEach(el => {
       el.addEventListener('click', () => openLightbox(el._meta));
@@ -705,7 +725,7 @@
       // Show loading overlay and skeletons
       try { showLoading(true, count); } catch (e) {}
       if (selectedDate) {
-        // APOD path via proxy
+  // APOD path via proxy
         setStatus('Fetching APOD…');
         try {
           const apod = await fetchApodForDate(selectedDate);
@@ -748,7 +768,7 @@
             const fallbackItems = await fetchImagesForQuery(fallbackQuery, parseInt(numSelect.value, 10) || 6);
             if (fallbackItems && fallbackItems.length) {
               // show a banner explaining this is a fallback
-              renderGallery(fallbackItems);
+              renderGallery(fallbackItems, parseInt(numSelect.value, 10) || 6);
               if (statusEl) {
                 const b = document.createElement('div');
                 b.className = 'fallback-banner';
@@ -769,10 +789,10 @@
           }
         }
       } else {
-        // Images search path
+      // Images search path
         setStatus('Searching images…');
         const items = await fetchImagesForQuery(query || 'space', count);
-        renderGallery(items);
+        renderGallery(items, count);
         setStatus(`Found ${items.length} results for "${query || 'space'}"`);
         setSourceLabel('images-api');
       }

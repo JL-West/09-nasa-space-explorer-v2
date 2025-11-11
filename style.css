@@ -272,6 +272,14 @@ button:focus {
   height: 220px;
   object-fit: cover;
   border-radius: 8px;
+  transition: transform 220ms ease, box-shadow 220ms ease;
+  cursor: zoom-in;
+}
+
+.gallery-item:hover img,
+.gallery-item:focus-within img {
+  transform: scale(1.06);
+  box-shadow: 0 12px 30px rgba(2,10,26,0.6);
 }
 
 .gallery-item p {
@@ -390,6 +398,10 @@ button:focus {
   width: 100%;
   height: auto;
   border-radius: 6px;
+  transition: transform 260ms cubic-bezier(.22,.9,.32,1), opacity 200ms ease;
+}
+.lightbox.open .lightbox-media img {
+  transform: scale(1.02);
 }
 .lightbox-meta {
   margin-top: 8px;
