@@ -16,8 +16,16 @@
   const CACHE_TTL_MS = 1000 * 60 * 60 * 6; // 6 hours for cached search results
   const APOD_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours for APOD results
   const IMAGES_API_BASE = 'https://images-api.nasa.gov';
-  const APOD_PROXY_PATH = '/apod-proxy'; // server endpoint (server.js)
-  const RESOLVE_ASSET_PATH = '/resolve-asset'; // server helper to get best direct url for nasa_id
+  // Backend API base. If the developer provides window.NASA_CONFIG.API_BASE (in config.js)
+  // use it. Otherwise default to the local server at port 8000. This ensures the
+  // frontend calls the Node/Express endpoints (APOD proxy, resolver, image-proxy)
+  // even when the static files are served by a different dev server (e.g. Live Preview).
+  const DEFAULT_API_BASE = 'http://127.0.0.1:8000';
+  const API_BASE = (window.NASA_CONFIG && window.NASA_CONFIG.API_BASE)
+    || ((location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? `${location.protocol}//${location.hostname}:8000` : DEFAULT_API_BASE);
+  const APOD_PROXY_PATH = `${API_BASE}/apod-proxy`;
+  const RESOLVE_ASSET_PATH = `${API_BASE}/resolve-asset`;
+  const IMAGE_PROXY_PATH = `${API_BASE}/image-proxy`;
   const OMDB_BASE = 'https://www.omdbapi.com/';
 
   // Helpful DOM selectors (will be assigned on DOMContentLoaded)
@@ -285,6 +293,12 @@
   container.innerHTML = '';
 
     const seenKeys = new Set();
+    // Tune gallery columns based on desiredCount (visual layout): prefer 3 columns
+    try {
+      gallery.classList.remove('cols-3','cols-6','cols-9');
+      if ([3,6,9].includes(count)) gallery.classList.add(`cols-${count}`);
+    } catch (e) {}
+
     items.forEach((item, idx) => {
       // Build a unique key for deduplication. Use the index as a last-resort
       // fallback so items without url/title/nasa_id are not dropped.
@@ -395,6 +409,26 @@
       })(card, item);
 
       container.appendChild(card);
+
+      // Immediately attempt to resolve a higher-quality image for this nasa_id
+      // so the thumbnail upgrades from a small preview to a better image.
+      try {
+        const imgEl = card.querySelector('img');
+        if (item.nasa_id && imgEl) {
+          (async () => {
+            try {
+              const resp = await fetch(`${RESOLVE_ASSET_PATH}?nasa_id=${encodeURIComponent(item.nasa_id)}`);
+              if (!resp.ok) return;
+              const j = await resp.json();
+              if (j && j.best && j.type === 'image' && imgEl.src !== j.best) {
+                imgEl.src = j.best;
+              }
+            } catch (err) {
+              // ignore resolver errors
+            }
+          })();
+        }
+      } catch (e) {}
     });
 
     // If we need to pad to reach `count`, add placeholder cards
@@ -408,7 +442,10 @@
           <div class="caption"><h3 class="title">No image</h3><p class="desc">No result available</p></div>
         </article>
       `;
-      container.insertAdjacentHTML('beforeend', phHtml);
+      // Create DOM node so we can attach a meta object for click handling
+      const node = nodeFromHtml(phHtml);
+      node._meta = { title: 'No image', url: '', media_type: 'image', description: 'No result available' };
+      container.appendChild(node);
       current++;
     }
     // Attach click and keyboard handlers to open lightbox

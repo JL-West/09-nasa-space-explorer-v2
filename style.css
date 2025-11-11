@@ -249,6 +249,21 @@ button:focus {
   align-items: start;
 }
 
+/* Force a consistent 3-column layout when developer requests 3/6/9 tiles */
+.gallery.cols-3,
+.gallery.cols-6,
+.gallery.cols-9 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 900px) {
+  .gallery.cols-3,
+  .gallery.cols-6,
+  .gallery.cols-9 {
+    grid-template-columns: 1fr; /* stack on small screens */
+  }
+}
+
 /* Gallery items */
 .gallery-item {
   background: linear-gradient(180deg, rgba(11,61,145,0.06), rgba(11,42,68,0.04));
