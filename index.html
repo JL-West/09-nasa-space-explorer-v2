@@ -12,8 +12,11 @@
       <img src="img/nasa-worm-logo.png" alt="NASA Logo" class="logo" />
       <h1>Space Explorer</h1>
     </header>
-    <!-- Fun fact area (moved to top for visibility) -->
-  <div id="funFact" class="fun-fact" aria-live="polite"></div>
+    <!-- Fun fact area (moved to top for visibility). A short default is present so
+      users still see something if JS initialization fails. -->
+    <div id="funFact" class="fun-fact" aria-live="polite">Fun space fact: Sunlight takes about 8 minutes and 20 seconds to reach Earth.</div>
+    <!-- Non-sensitive indicator showing which backend API base the client will call -->
+    <div id="apiBaseIndicator" class="key-indicator" aria-hidden="true" style="display:none;font-size:13px;margin-top:8px;"></div>
   <!-- Non-sensitive source label: shows which source served the last APOD (apod-api, apod-scrape, apod-wayback, images-api-fallback) -->
   <div id="sourceLabel" class="source-label" aria-hidden="true"></div>
 

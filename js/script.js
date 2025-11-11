@@ -856,6 +856,8 @@
     lightboxMedia = document.getElementById('lightboxMedia');
     lightboxMeta = document.getElementById('lightboxMeta');
     funFactEl = document.getElementById('funFact');
+  // non-sensitive API base indicator (helps when using Live Preview vs backend)
+  const apiBaseIndicator = document.getElementById('apiBaseIndicator');
   sourceLabelEl = document.getElementById('sourceLabel');
     // key manager elements
     apodKeyInput = document.getElementById('apodKeyInput');
@@ -871,8 +873,16 @@
 
     // Show a random fun fact at top (ensure it's visible)
     try {
-      if (funFactEl) funFactEl.style.display = '';
-      showRandomFunFact();
+      if (funFactEl) {
+        // Ensure element is visible and populated
+        funFactEl.style.display = '';
+        try { showRandomFunFact(); } catch (e) { /* leave default text */ }
+      }
+      // Display the API base so developers can confirm which backend will be called.
+      if (apiBaseIndicator) {
+        apiBaseIndicator.style.display = '';
+        try { apiBaseIndicator.textContent = `API base: ${API_BASE}`; } catch (e) { /* ignore */ }
+      }
     } catch (e) {
       console.warn('Could not show fun fact', e);
     }
@@ -954,12 +964,6 @@
   });
   window.addEventListener('unhandledrejection', (e) => {
     try { if (statusEl) statusEl.textContent = `Error: ${e.reason || e}`; } catch (err) {}
-    console.error('Unhandled rejection', e);
-  });
-
-})();
-
-
     console.error('Unhandled rejection', e);
   });
 
