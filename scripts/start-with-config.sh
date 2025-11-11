@@ -13,11 +13,17 @@ fi
 # Print export lines using node and eval them in the shell
 eval $(node - <<'NODE'
 const c = require('./config.js');
-if (!c || !c.NASA_API_KEY) {
-  console.error('config.js missing NASA_API_KEY');
+if (!c) {
+  console.error('config.js missing or invalid');
   process.exit(2);
 }
-console.log('export NASA_API_KEY="' + c.NASA_API_KEY + '"');
+// Prefer NASA_API_KEY (server-side env var name), but fall back to APOD_API_KEY if present
+const nasaKey = c.NASA_API_KEY || c.APOD_API_KEY || '';
+if (!nasaKey) {
+  console.error('config.js missing NASA_API_KEY/APOD_API_KEY');
+  process.exit(2);
+}
+console.log('export NASA_API_KEY="' + nasaKey + '"');
 if (c.OMDB_API_KEY) console.log('export OMDB_API_KEY="' + c.OMDB_API_KEY + '"');
 NODE
 )
