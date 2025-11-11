@@ -127,8 +127,24 @@ button:focus {
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 8px;
   font-size: 15px;
+  /* Make dropdown font high-contrast and NASA-branded */
+  color: #ffffff; /* white text */
+  background: linear-gradient(90deg, var(--nasa-blue), var(--nasa-blue-2));
+}
+.filters input[type="text"] {
+  font-family: inherit;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  font-size: 15px;
   color: #e8f4ff;
   background: rgba(255,255,255,0.02);
+}
+
+/* Ensure option text is readable where supported */
+.filters select option {
+  color: #fff;
+  background: linear-gradient(90deg, var(--nasa-blue), var(--nasa-blue-2));
 }
 
 /* Settings toggle and panel (hidden by default) */

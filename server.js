@@ -37,6 +37,36 @@ function cacheSet(key, data, ttl = CACHE_TTL_MS) {
   cache.set(key, { data, expires: Date.now() + ttl });
 }
 
+// Helper: resolve a NASA images-api asset (by nasa_id) to a best direct URL
+async function resolveAssetByNasaId(nasaId) {
+  if (!nasaId) return null;
+  const cacheKey = `asset:${nasaId}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const url = `https://images-api.nasa.gov/asset/${encodeURIComponent(nasaId)}`;
+    const res = await axios.get(url, { timeout: 15000 });
+    if (res.status !== 200 || !res.data || !res.data.collection) return null;
+    const items = res.data.collection.items || [];
+    // Prefer mp4 if present, otherwise the largest image (heuristic: last image)
+    const mp4 = items.find(i => i.href && i.href.endsWith('.mp4'));
+    if (mp4 && mp4.href) {
+      const out = { best: mp4.href, items, type: 'video', source: 'images-asset' };
+      cacheSet(cacheKey, out, 24 * 60 * 60 * 1000);
+      return out;
+    }
+    // images
+    const images = items.filter(i => i.href && i.href.match(/\.(jpg|jpeg|png|gif)$/i));
+    const best = images.length ? images[images.length - 1].href : null;
+    const out = { best: best || null, items, type: 'image', source: 'images-asset' };
+    cacheSet(cacheKey, out, 24 * 60 * 60 * 1000);
+    return out;
+  } catch (err) {
+    return null;
+  }
+}
+
 function dateToApodPage(dateStr) {
   // dateStr is YYYY-MM-DD -> apYYMMDD.html (two-digit year)
   const [y, m, d] = dateStr.split('-');
@@ -224,6 +254,19 @@ app.get('/apod-proxy', async (req, res) => {
   }
 
   return res.status(404).json({ error: `No APOD found for ${date}` });
+});
+
+// Resolve endpoint: return a best direct URL for a given nasa_id
+app.get('/resolve-asset', async (req, res) => {
+  const nasaId = req.query.nasa_id || req.query.id || req.query.nasaId;
+  if (!nasaId) return res.status(400).json({ error: 'Missing nasa_id query parameter' });
+  try {
+    const resolved = await resolveAssetByNasaId(nasaId);
+    if (!resolved) return res.status(404).json({ error: 'No asset found for that nasa_id' });
+    return res.json(resolved);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to resolve asset' });
+  }
 });
 
 // Serve static files from the project root so index.html works when visiting the server

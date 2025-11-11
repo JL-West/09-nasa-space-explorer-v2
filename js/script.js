@@ -17,6 +17,7 @@
   const APOD_CACHE_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours for APOD results
   const IMAGES_API_BASE = 'https://images-api.nasa.gov';
   const APOD_PROXY_PATH = '/apod-proxy'; // server endpoint (server.js)
+  const RESOLVE_ASSET_PATH = '/resolve-asset'; // server helper to get best direct url for nasa_id
   const OMDB_BASE = 'https://www.omdbapi.com/';
 
   // Helpful DOM selectors (will be assigned on DOMContentLoaded)
@@ -325,14 +326,20 @@
                 return;
               }
 
-              // If we have a NASA id, query the asset endpoint for images
+              // If we have a NASA id, ask our server to resolve it to a direct image/video URL
               if (itemMeta.nasa_id) {
                 try {
-                  const resp = await fetch(`${IMAGES_API_BASE}/asset/${encodeURIComponent(itemMeta.nasa_id)}`);
+                  const resp = await fetch(`${RESOLVE_ASSET_PATH}?nasa_id=${encodeURIComponent(itemMeta.nasa_id)}`);
                   if (resp.ok) {
                     const j = await resp.json();
-                    if (j && j.collection && Array.isArray(j.collection.items)) {
-                      const imgs = j.collection.items.filter(i => i.href && /(jpg|jpeg|png|gif)$/i.test(i.href));
+                    // Server returns { best: 'url', items: [...], type: 'image'|'video' }
+                    if (j && j.best) {
+                      img.src = j.best;
+                      return;
+                    }
+                    // If server returned items in the older shape, try to find images
+                    if (j && j.items && Array.isArray(j.items)) {
+                      const imgs = j.items.filter(i => i.href && /(jpg|jpeg|png|gif)$/i.test(i.href));
                       if (imgs.length) {
                         img.src = imgs[imgs.length - 1].href;
                         return;
@@ -465,14 +472,29 @@
       const imgEl = document.createElement('img');
       imgEl.className = 'lb-image';
       if (nasaId) {
-        // Try assets endpoint to find better resolution or videos
-        fetch(`${IMAGES_API_BASE}/asset/${encodeURIComponent(nasaId)}`)
+        // Try our server resolver to find better resolution or videos for this nasaId
+        fetch(`${RESOLVE_ASSET_PATH}?nasa_id=${encodeURIComponent(nasaId)}`)
           .then(r => r.json())
           .then(data => {
-            // data.collection.items is an array of assets
-            if (data && data.collection && Array.isArray(data.collection.items)) {
-              // Prefer mp4 if present, otherwise largest image
-              const mp4 = data.collection.items.find(i => i.href && i.href.endsWith('.mp4'));
+            // Server returns { best, items, type }
+            if (data && data.best) {
+              if (data.type === 'video') {
+                const video = document.createElement('video');
+                video.controls = true;
+                video.src = data.best;
+                video.className = 'lb-video';
+                lightboxMedia.appendChild(video);
+                renderMetaExtras('');
+                return;
+              }
+              imgEl.src = data.best;
+              lightboxMedia.appendChild(imgEl);
+              renderMetaExtras('');
+              return;
+            }
+            // If the resolver returned an items array, try to find a best image
+            if (data && data.items && Array.isArray(data.items)) {
+              const mp4 = data.items.find(i => i.href && i.href.endsWith('.mp4'));
               if (mp4) {
                 const video = document.createElement('video');
                 video.controls = true;
@@ -482,8 +504,7 @@
                 renderMetaExtras('');
                 return;
               }
-              // Find largest image (heuristic: last image item)
-              const images = data.collection.items.filter(i => i.href && i.href.match(/\.(jpg|jpeg|png|gif)$/i));
+              const images = data.items.filter(i => i.href && i.href.match(/\.(jpg|jpeg|png|gif)$/i));
               const best = images.length ? images[images.length - 1].href : meta.url;
               imgEl.src = best || meta.url;
               lightboxMedia.appendChild(imgEl);
