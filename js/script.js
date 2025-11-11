@@ -351,6 +351,18 @@
                 }
               }
 
+              // As Option B (image proxy), try our server image-proxy for the candidate URL(s)
+              const candidate2 = itemMeta.thumbnail || itemMeta.url || '';
+              if (candidate2) {
+                try {
+                  const prox = `${window.location.origin}/image-proxy?url=${encodeURIComponent(candidate2)}`;
+                  img.src = prox;
+                  return;
+                } catch (e) {
+                  // ignore
+                }
+              }
+
               // Ultimate fallback: small inline SVG placeholder
               img.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="100%" height="100%" fill="%2308122a"/><text x="50%" y="50%" fill="%23fff" font-size="18" text-anchor="middle" dy=".3em">Image unavailable</text></svg>';
             } catch (err) {
@@ -664,7 +676,13 @@
       console.warn('Missing UI elements for fetch');
       return;
     }
-    const selectedDate = dateSelect.value;
+    const selectedDateRaw = dateSelect.value;
+    // Validate date format YYYY-MM-DD; some browsers may return localized or empty values.
+    const selectedDate = selectedDateRaw && (/^\d{4}-\d{2}-\d{2}$/.test(selectedDateRaw) ? selectedDateRaw : '');
+    if (selectedDateRaw && !selectedDate) {
+      // If the user entered a date but it didn't match expected format, inform them and treat as no date
+      setStatus('Invalid date format selected; please use the calendar picker or enter YYYY-MM-DD.');
+    }
     const query = queryInput.value;
     const count = parseInt(numSelect.value, 10) || 6;
 

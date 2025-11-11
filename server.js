@@ -269,6 +269,39 @@ app.get('/resolve-asset', async (req, res) => {
   }
 });
 
+// Image proxy: streams external images through the server to avoid CORS/hotlinking issues.
+// For safety, only allow an allowlist of hostnames (common NASA hosts and known CDN hosts).
+app.get('/image-proxy', async (req, res) => {
+  const url = req.query.url;
+  if (!url) return res.status(400).json({ error: 'Missing url query parameter' });
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const allow = [
+      'apod.nasa.gov',
+      'images-api.nasa.gov',
+      'images.nasa.gov',
+      'img.youtube.com',
+      'i.ytimg.com',
+      'www.youtube.com',
+      'images.spaceref.com',
+      'i.imgur.com',
+      'pbs.twimg.com'
+    ];
+    const ok = allow.some(a => hostname === a || hostname.endsWith('.' + a));
+    if (!ok) return res.status(403).json({ error: 'Host not allowed to be proxied' });
+
+    const r = await axios.get(url, { responseType: 'stream', timeout: 20000 });
+    const contentType = r.headers['content-type'] || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    // Cache-control: let browsers cache proxied images for a short time
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    r.data.pipe(res);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to proxy image' });
+  }
+});
+
 // Serve static files from the project root so index.html works when visiting the server
 app.use(express.static(path.join(__dirname)));
 

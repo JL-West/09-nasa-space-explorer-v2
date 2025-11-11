@@ -119,18 +119,7 @@ button:focus {
   }
 }
 
-/* Controls: query input and count select */
-.filters input[type="text"],
-.filters select {
-  font-family: inherit;
-  padding: 10px 12px;
-  border: 1px solid rgba(224, 30, 30, 0.718);
-  border-radius: 8px;
-  font-size: 15px;
-  /* Make dropdown font high-contrast and NASA-branded */
-  color: #030c08e3; /* white text */
-  background: linear-gradient(90deg, var(--nasa-blue), var(--nasa-blue-2));
-}
+/* Controls: query input */
 .filters input[type="text"] {
   font-family: inherit;
   padding: 10px 12px;
@@ -141,10 +130,22 @@ button:focus {
   background: rgba(255,255,255,0.02);
 }
 
+/* Controls: count select (3/6/9) - selected value should be easy to read */
+.filters select {
+  font-family: inherit;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  font-size: 15px;
+  color: #000000; /* black text inside the box for readability */
+  background: #ffffff; /* white background so selected value is clear */
+}
+
 /* Ensure option text is readable where supported */
 .filters select option {
-  color: #fff;
-  background: linear-gradient(90deg, var(--nasa-blue), var(--nasa-blue-2));
+  /* Make option text easy to read inside the dropdown list */
+  color: #000000;
+  background: #ffffff;
 }
 
 /* Settings toggle and panel (hidden by default) */
