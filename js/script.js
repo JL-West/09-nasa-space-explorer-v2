@@ -281,9 +281,10 @@
 
     const seenKeys = new Set();
     items.forEach((item, idx) => {
-      // Skip duplicate items by url/nasa_id to avoid rendering the same image twice
-      const uniqueKey = (item.url || item.thumbnail || item.nasa_id || item.title || '').toString();
-      if (!uniqueKey || seenKeys.has(uniqueKey)) return;
+      // Build a unique key for deduplication. Use the index as a last-resort
+      // fallback so items without url/title/nasa_id are not dropped.
+      const uniqueKey = (item.url || item.thumbnail || item.nasa_id || item.title || `__idx_${idx}`).toString();
+      if (seenKeys.has(uniqueKey)) return;
       seenKeys.add(uniqueKey);
   const placeholderThumb = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260"><rect width="100%" height="100%" fill="%2308122a"/><text x="50%" y="50%" fill="%23fff" font-size="18" text-anchor="middle" dy=".3em">Image unavailable</text></svg>';
   const thumb = item.thumbnail || item.url || placeholderThumb;
