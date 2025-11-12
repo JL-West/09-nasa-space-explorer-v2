@@ -1031,6 +1031,78 @@
     // Create Debug overlay (Ctrl/Cmd+D)
     const dbg = createDebugOverlay();
 
+      // Create visible diagnostics panel so users can run quick connectivity checks
+      function createDiagnostics() {
+        const diag = document.getElementById('diagnostics');
+        const results = document.getElementById('diagResults');
+        const runBtn = document.getElementById('runDiagBtn');
+        if (!diag || !results || !runBtn) return { run: () => {} };
+        diag.style.display = '';
+
+        async function run() {
+          results.textContent = 'Running diagnostics...';
+          const lines = [];
+          try {
+            lines.push(`Resolved API_BASE: ${API_BASE}`);
+          } catch (e) {
+            lines.push(`Resolved API_BASE: (error)`);
+          }
+
+          // 1) health endpoint
+          try {
+            const h = await fetch(`${API_BASE.replace(/\/$/, '')}/health`, { cache: 'no-store' });
+            if (h.ok) {
+              const j = await h.json().catch(() => null);
+              lines.push(`/health: OK${j ? ' — ' + (j.status || JSON.stringify(j)) : ''}`);
+            } else {
+              lines.push(`/health: HTTP ${h.status}`);
+            }
+          } catch (err) {
+            lines.push(`/health: failed — ${err.message || err}`);
+          }
+
+          // 2) APOD proxy test (historic date likely to exist)
+          try {
+            const testDate = '2003-04-28';
+            const a = await fetch(`${API_BASE.replace(/\/$/, '')}/apod-proxy?date=${encodeURIComponent(testDate)}`, { cache: 'no-store' });
+            if (a.ok) {
+              const aj = await a.json().catch(() => null);
+              lines.push(`/apod-proxy?date=${testDate}: OK — source=${aj && aj.source ? aj.source : 'unknown'}`);
+            } else {
+              lines.push(`/apod-proxy?date=${testDate}: HTTP ${a.status}`);
+            }
+          } catch (err) {
+            lines.push(`/apod-proxy: failed — ${err.message || err}`);
+          }
+
+          // 3) NASA Images API quick query (public API)
+          try {
+            const qurl = `https://images-api.nasa.gov/search?q=nebula&media_type=image,video`;
+            const r = await fetch(qurl, { cache: 'no-store' });
+            if (r.ok) {
+              const j = await r.json().catch(() => null);
+              const count = (j && j.collection && Array.isArray(j.collection.items)) ? j.collection.items.length : 'unknown';
+              lines.push(`images-api.nasa.gov search: OK — items=${count}`);
+            } else {
+              lines.push(`images-api.nasa.gov search: HTTP ${r.status}`);
+            }
+          } catch (err) {
+            lines.push(`images-api.nasa.gov search: failed — ${err.message || err}`);
+          }
+
+          results.textContent = lines.join('\n');
+        }
+
+        runBtn.addEventListener('click', run);
+        // Return an object so callers can programmatically run it if needed
+        return { run };
+      }
+
+      // Initialize diagnostics and expose for manual run in console
+      try {
+        window.__nasaDiagnostics = createDiagnostics();
+      } catch (e) {}
+
     // Expose a small API for debugging in console if needed
     window.__nasaDebug = {
       clearCache: clearAllCache,
