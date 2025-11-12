@@ -38,6 +38,25 @@
       API_BASE = location.origin; // use proxied origin in preview hosts
     }
   }
+  // Guard against mixed-content: if the page is served over HTTPS, do not
+  // allow an insecure (http://) API_BASE to be used — this would cause the
+  // browser to block requests. Prefer the page origin when available.
+  try {
+    if (typeof location !== 'undefined' && location.protocol === 'https:') {
+      if (/^http:\/\//i.test(API_BASE)) {
+        console.warn('Insecure API_BASE ignored because page is HTTPS; switching to location.origin');
+        if (typeof location !== 'undefined' && location.origin) {
+          API_BASE = location.origin;
+        } else {
+          // As a last resort, convert to https (may fail if backend doesn't support it)
+          API_BASE = API_BASE.replace(/^http:/i, 'https:');
+        }
+      }
+    }
+  } catch (e) {
+    // ignore and continue with whatever API_BASE we have
+  }
+
   const APOD_PROXY_PATH = `${API_BASE}/apod-proxy`;
   const RESOLVE_ASSET_PATH = `${API_BASE}/resolve-asset`;
   const IMAGE_PROXY_PATH = `${API_BASE}/image-proxy`;
