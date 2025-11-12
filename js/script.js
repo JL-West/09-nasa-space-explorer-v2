@@ -1138,6 +1138,58 @@
             } catch (err) {
               out.querySelector('#i').innerHTML = `<span class="err">${err.message || 'failed'}</span>`;
             }
+            // If some checks failed with 404 or network errors, attempt a few
+            // guessed alternate origins used by preview hosts: swap common
+            // port-suffixed hostnames like -3000 <-> -8000. This often helps
+            // when the preview serves static site under one forwarded port and
+            // the backend is exposed under another forwarded port subdomain.
+            try {
+              const hText = out.querySelector('#h') && out.querySelector('#h').textContent || '';
+              const aText = out.querySelector('#a') && out.querySelector('#a').textContent || '';
+              if (hText.includes('HTTP 404') || hText.includes('failed') || aText.includes('HTTP 404') || aText.includes('failed')) {
+                const altResultsId = 'altResults';
+                out.insertAdjacentHTML('beforeend', `<div class="row"><strong>Alternate origins</strong><div id="${altResultsId}"></div></div>`);
+                const altEl = out.querySelector(`#${altResultsId}`);
+                const tryBases = [];
+                try {
+                  const m3000 = API_BASE.match(/(.+)-3000(\.app\.github\.dev.*)$/);
+                  if (m3000) {
+                    tryBases.push(API_BASE.replace('-3000', '-8000'));
+                  }
+                  const m8000 = API_BASE.match(/(.+)-8000(\.app\.github\.dev.*)$/);
+                  if (m8000) {
+                    tryBases.push(API_BASE.replace('-8000', '-3000'));
+                  }
+                } catch (e) {}
+                // Deduplicate
+                const uniq = Array.from(new Set(tryBases));
+                if (uniq.length === 0) {
+                  altEl.innerHTML = '<div class="row"><span class="label">No alternate preview patterns detected</span></div>';
+                } else {
+                  for (const b of uniq) {
+                    const idH = `h_${b.replace(/[^a-z0-9]/gi,'')}`;
+                    const idA = `a_${b.replace(/[^a-z0-9]/gi,'')}`;
+                    altEl.insertAdjacentHTML('beforeend', `<div class="row"><span class="label">${b}/health</span><span id="${idH}">checking…</span></div><div class="row"><span class="label">${b}/apod-proxy</span><span id="${idA}">checking…</span></div>`);
+                    (async (base, hId, aId) => {
+                      try {
+                        const hr = await fetchWithTimeout(`${base.replace(/\/$/, '')}/health`, 6000);
+                        document.getElementById(hId).innerHTML = hr.ok ? '<span class="ok">OK</span>' : `<span class="err">HTTP ${hr.status}</span>`;
+                      } catch (err) {
+                        document.getElementById(hId).innerHTML = `<span class="err">${err.message||'failed'}</span>`;
+                      }
+                      try {
+                        const ar = await fetchWithTimeout(`${base.replace(/\/$/, '')}/apod-proxy?date=2003-04-28`, 8000);
+                        document.getElementById(aId).innerHTML = ar.ok ? '<span class="ok">OK</span>' : `<span class="err">HTTP ${ar.status}</span>`;
+                      } catch (err) {
+                        document.getElementById(aId).innerHTML = `<span class="err">${err.message||'failed'}</span>`;
+                      }
+                    })(b, idH, idA);
+                  }
+                }
+              }
+            } catch (e) {
+              // ignore alt origin probe errors
+            }
           }
 
           btn.addEventListener('click', doChecks);
