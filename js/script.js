@@ -257,6 +257,31 @@
         <div class="skeleton-line short"></div>
       `;
       container.appendChild(card);
+
+      // Defensive: attach per-card handlers as a fallback in case delegated
+      // event handling is not available or fails in some dev preview environments.
+      // We keep a small guard flag so we don't attach duplicate handlers on re-renders.
+      try {
+        if (!card._hasLocalHandlers) {
+          card.addEventListener('click', (ev) => {
+            try {
+              if (card._meta) openLightbox(card._meta);
+            } catch (e) { console.warn('card click handler error', e); }
+          });
+          card.addEventListener('keydown', (ev) => {
+            try {
+              if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                if (card._meta) openLightbox(card._meta);
+              }
+            } catch (e) { console.warn('card key handler error', e); }
+          });
+          card._hasLocalHandlers = true;
+        }
+      } catch (e) {
+        // Non-fatal: proceed without per-card handlers if something goes wrong
+        console.warn('Failed to attach per-card handlers', e);
+      }
     }
     gallery.innerHTML = '';
     gallery.appendChild(container);
