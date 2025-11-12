@@ -243,11 +243,14 @@ button:focus {
 /* Gallery flex container */
 .gallery {
   display: grid;
-  /* allow smaller tiles so more columns fit on narrower viewports */
+  /* allow more tiles to fit by using a small min width; browsers will
+     lay out as many columns as fit the viewport. */
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--gap);
   padding: 20px;
   align-items: start;
+  max-width: 1200px; /* keep the grid from becoming extremely wide on large screens */
+  margin: 0 auto;
 }
 
 /* Force a consistent 3-column layout when developer requests 3/6/9 tiles */
@@ -275,7 +278,9 @@ button:focus {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  cursor: pointer; /* make whole tile clickable */
+  cursor: pointer; /* make whole tile clickable and provide information on the subject in the tile when clicked */
+  min-width: 0;
+  max-width: 360px;
 }
 
 /* Three columns on wider screens */

@@ -817,10 +817,48 @@
               gallery.insertAdjacentElement('beforebegin', b);
             }
           } else {
-            renderGallery([item]);
-            setStatus(`APOD loaded for ${selectedDate}`);
-            // indicate source when APOD loaded
-            setSourceLabel(apod.source || 'apod-api');
+            // If the user requested more than one tile, attempt to fetch related
+            // images to pad the gallery so the page shows multiple thumbnails
+            // instead of a single APOD. This keeps the UX consistent when the
+            // date-based APOD is just one image.
+            try {
+              const desired = parseInt(numSelect.value, 10) || 1;
+              if (desired > 1) {
+                // Use the query input if present; otherwise use the APOD year as a hint
+                const year = (selectedDate || '').slice(0, 4) || '';
+                const fallbackQuery = (query && query.trim()) ? query.trim() : (year ? `${year} apod` : 'space');
+                // Request up to (desired - 1) related images
+                const needed = Math.max(0, desired - 1);
+                const related = await fetchImagesForQuery(fallbackQuery, needed);
+                // Merge APOD first, then related items, dedupe by url/nasa_id/title
+                const merged = [item];
+                const seen = new Set();
+                function mark(i) {
+                  const key = (i.url || i.thumbnail || i.nasa_id || i.title || '').toString();
+                  seen.add(key);
+                }
+                mark(item);
+                for (const r of (related || [])) {
+                  const key = (r.url || r.thumbnail || r.nasa_id || r.title || '').toString();
+                  if (!seen.has(key) && merged.length < desired) {
+                    merged.push(r);
+                    seen.add(key);
+                  }
+                }
+                renderGallery(merged, desired);
+                setStatus(`APOD plus ${merged.length - 1} related images shown for ${selectedDate}`);
+                setSourceLabel(apod.source || 'apod-api');
+              } else {
+                renderGallery([item]);
+                setStatus(`APOD loaded for ${selectedDate}`);
+                setSourceLabel(apod.source || 'apod-api');
+              }
+            } catch (err) {
+              // If padding fails, just show the APOD alone
+              renderGallery([item]);
+              setStatus(`APOD loaded for ${selectedDate}`);
+              setSourceLabel(apod.source || 'apod-api');
+            }
           }
         } catch (err) {
           // On any APOD fetch failure, attempt a related NASA Images API search as a best-effort fallback
