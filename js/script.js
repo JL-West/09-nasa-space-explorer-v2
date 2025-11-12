@@ -463,22 +463,8 @@
       container.appendChild(node);
       current++;
     }
-    // Attach click and keyboard handlers to open lightbox.
-    // Use event delegation so clicks on inner elements still open the modal.
-    container.addEventListener('click', (e) => {
-      const card = e.target.closest && e.target.closest('.gallery-item');
-      if (card && card._meta) {
-        openLightbox(card._meta);
-      }
-    });
-    container.addEventListener('keydown', (e) => {
-      const card = e.target.closest && e.target.closest('.gallery-item');
-      if (!card) return;
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        openLightbox(card._meta);
-      }
-    });
+    // Note: delegated click/keyboard handlers are attached once during init()
+    // to avoid adding duplicate listeners on every render.
   }
 
   // Lightbox helpers: open / close and render media + metadata
@@ -1030,6 +1016,28 @@
 
     // Create Debug overlay (Ctrl/Cmd+D)
     const dbg = createDebugOverlay();
+
+    // Attach a single delegated handler for gallery interactions so it works
+    // regardless of how often renderGallery is called.
+    try {
+      if (gallery && !gallery._hasDelegates) {
+        gallery.addEventListener('click', (e) => {
+          const card = e.target.closest && e.target.closest('.gallery-item');
+          if (card && card._meta) openLightbox(card._meta);
+        });
+        gallery.addEventListener('keydown', (e) => {
+          const card = e.target.closest && e.target.closest('.gallery-item');
+          if (!card) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openLightbox(card._meta);
+          }
+        });
+        gallery._hasDelegates = true;
+      }
+    } catch (e) {
+      // non-fatal
+    }
 
     // Create a small diagnostics panel inside the page so developers can
     // quickly confirm connectivity without opening DevTools.

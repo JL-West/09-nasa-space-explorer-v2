@@ -244,7 +244,7 @@ button:focus {
 .gallery {
   display: grid;
   /* allow smaller tiles so more columns fit on narrower viewports */
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--gap);
   padding: 20px;
   align-items: start;
@@ -288,7 +288,8 @@ button:focus {
 .gallery-item img {
   width: 100%;
   /* Slightly smaller thumbs so multiple tiles fit comfortably */
-  height: 160px;
+  height: 140px;
+  max-height: 160px;
   object-fit: cover;
   border-radius: 8px;
   transition: transform 220ms ease, box-shadow 220ms ease;
