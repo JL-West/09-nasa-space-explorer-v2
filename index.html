@@ -22,10 +22,10 @@
 
     <div class="filters">
         <label for="dateSelect" class="sr-only">Select date</label>
-    <input id="dateSelect" type="date" min="1995-06-16" aria-label="Select a date (YYYY-MM-DD)" />
+  <input id="dateSelect" name="date" type="date" min="1995-06-16" aria-label="Select a date (YYYY-MM-DD)" />
         <!-- Example dates removed to avoid runtime issues in some dev environments -->
-      <input type="text" id="queryInput" placeholder="Search (e.g. nebula, mars, galaxy)" aria-label="Search term" />
-      <select id="numSelect" aria-label="Number of images">
+  <input type="text" id="queryInput" name="q" placeholder="Search (e.g. nebula, mars, galaxy)" aria-label="Search term" />
+  <select id="numSelect" name="count" aria-label="Number of images">
         <option value="3">3 images</option>
         <option value="6" selected>6 images</option>
         <option value="9">9 images</option>
