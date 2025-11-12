@@ -21,8 +21,13 @@
   // frontend calls the Node/Express endpoints (APOD proxy, resolver, image-proxy)
   // even when the static files are served by a different dev server (e.g. Live Preview).
   const DEFAULT_API_BASE = 'http://127.0.0.1:8000';
+  // Determine API base in this priority order:
+  // 1) window.NASA_CONFIG.API_BASE (developer override in config.js)
+  // 2) same host as the page but port 8000 (works when Live Preview / Codespace forwards the workspace host)
+  // 3) fallback to localhost:8000 as a last resort
   const API_BASE = (window.NASA_CONFIG && window.NASA_CONFIG.API_BASE)
-    || ((location.hostname === '127.0.0.1' || location.hostname === 'localhost') ? `${location.protocol}//${location.hostname}:8000` : DEFAULT_API_BASE);
+    || (typeof location !== 'undefined' && location.hostname ? `${location.protocol}//${location.hostname}:8000` : DEFAULT_API_BASE)
+    || DEFAULT_API_BASE;
   const APOD_PROXY_PATH = `${API_BASE}/apod-proxy`;
   const RESOLVE_ASSET_PATH = `${API_BASE}/resolve-asset`;
   const IMAGE_PROXY_PATH = `${API_BASE}/image-proxy`;
