@@ -20,16 +20,10 @@
   <!-- Non-sensitive source label: shows which source served the last APOD (apod-api, apod-scrape, apod-wayback, images-api-fallback) -->
   <div id="sourceLabel" class="source-label" aria-hidden="true"></div>
 
-    <!-- Diagnostics panel (visible) to help debug network / API connectivity without opening DevTools -->
-    <div id="diagnostics" class="diagnostics" aria-live="polite" style="display:none;margin-top:12px;padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
-        <strong>Diagnostics</strong>
-        <div>
-          <button id="runDiagBtn" type="button">Run diagnostics</button>
-        </div>
-      </div>
-      <div id="diagResults" style="margin-top:8px;font-size:13px;color:#dbeeff;white-space:pre-wrap;"></div>
-    </div>
+    <!-- Diagnostics panel injected by script for debugging connectivity -->
+    <div id="diagPanel" class="diag-panel" aria-live="polite" style="display:none"></div>
+    <!-- In-page diagnostics to help debug connectivity without DevTools -->
+    <div id="diagnostics" class="diagnostics" aria-live="polite"></div>
 
     <div class="filters">
         <label for="dateSelect" class="sr-only">Select date</label>

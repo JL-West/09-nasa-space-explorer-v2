@@ -459,6 +459,23 @@ button:focus {
   display: none;
 }
 
+/* Diagnostics panel for quick connectivity checks */
+.diagnostics {
+  margin: 12px 20px 0 20px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  color: #dbeeff;
+  font-size: 13px;
+  max-width: 980px;
+  box-shadow: 0 8px 24px rgba(2,10,26,0.5);
+}
+.diagnostics .row { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
+.diagnostics .label { color: var(--muted); min-width:120px; }
+.diagnostics .ok { color: #8fe78f; }
+.diagnostics .err { color: #ff9a9a; }
+.diagnostics button { margin-left: auto; padding:6px 8px; font-size:12px; }
+
 /* Loading overlay and spinner */
 .loading-overlay {
   position: fixed;
@@ -472,6 +489,18 @@ button:focus {
   opacity: 0;
   transition: opacity 200ms ease-in-out, visibility 200ms;
 }
+.diag-panel {
+  margin: 12px 0;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.04);
+  color: #dbeeff;
+  font-family: monospace;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.diag-panel .diag-row { margin-bottom: 6px; }
+.diag-panel button { margin-top: 6px; padding: 6px 8px; border-radius:6px; border: none; background: var(--nasa-blue); color:#fff; cursor:pointer; }
 .loading-overlay.show {
   visibility: visible;
   opacity: 1;

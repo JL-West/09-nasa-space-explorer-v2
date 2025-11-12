@@ -1031,77 +1031,103 @@
     // Create Debug overlay (Ctrl/Cmd+D)
     const dbg = createDebugOverlay();
 
-      // Create visible diagnostics panel so users can run quick connectivity checks
-      function createDiagnostics() {
-        const diag = document.getElementById('diagnostics');
-        const results = document.getElementById('diagResults');
-        const runBtn = document.getElementById('runDiagBtn');
-        if (!diag || !results || !runBtn) return { run: () => {} };
-        diag.style.display = '';
-
-        async function run() {
-          results.textContent = 'Running diagnostics...';
-          const lines = [];
-          try {
-            lines.push(`Resolved API_BASE: ${API_BASE}`);
-          } catch (e) {
-            lines.push(`Resolved API_BASE: (error)`);
+    // Create a small diagnostics panel inside the page so developers can
+    // quickly confirm connectivity without opening DevTools.
+    function createDiagnosticsPanel() {
+      try {
+        let el = document.getElementById('diagnostics');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'diagnostics';
+          el.className = 'diagnostics';
+          if (apiBaseIndicator && apiBaseIndicator.parentNode) {
+            apiBaseIndicator.parentNode.insertBefore(el, apiBaseIndicator.nextSibling);
+          } else if (gallery && gallery.parentNode) {
+            gallery.parentNode.insertBefore(el, gallery);
+          } else {
+            document.body.appendChild(el);
           }
-
-          // 1) health endpoint
-          try {
-            const h = await fetch(`${API_BASE.replace(/\/$/, '')}/health`, { cache: 'no-store' });
-            if (h.ok) {
-              const j = await h.json().catch(() => null);
-              lines.push(`/health: OK${j ? ' — ' + (j.status || JSON.stringify(j)) : ''}`);
-            } else {
-              lines.push(`/health: HTTP ${h.status}`);
-            }
-          } catch (err) {
-            lines.push(`/health: failed — ${err.message || err}`);
-          }
-
-          // 2) APOD proxy test (historic date likely to exist)
-          try {
-            const testDate = '2003-04-28';
-            const a = await fetch(`${API_BASE.replace(/\/$/, '')}/apod-proxy?date=${encodeURIComponent(testDate)}`, { cache: 'no-store' });
-            if (a.ok) {
-              const aj = await a.json().catch(() => null);
-              lines.push(`/apod-proxy?date=${testDate}: OK — source=${aj && aj.source ? aj.source : 'unknown'}`);
-            } else {
-              lines.push(`/apod-proxy?date=${testDate}: HTTP ${a.status}`);
-            }
-          } catch (err) {
-            lines.push(`/apod-proxy: failed — ${err.message || err}`);
-          }
-
-          // 3) NASA Images API quick query (public API)
-          try {
-            const qurl = `https://images-api.nasa.gov/search?q=nebula&media_type=image,video`;
-            const r = await fetch(qurl, { cache: 'no-store' });
-            if (r.ok) {
-              const j = await r.json().catch(() => null);
-              const count = (j && j.collection && Array.isArray(j.collection.items)) ? j.collection.items.length : 'unknown';
-              lines.push(`images-api.nasa.gov search: OK — items=${count}`);
-            } else {
-              lines.push(`images-api.nasa.gov search: HTTP ${r.status}`);
-            }
-          } catch (err) {
-            lines.push(`images-api.nasa.gov search: failed — ${err.message || err}`);
-          }
-
-          results.textContent = lines.join('\n');
         }
 
-        runBtn.addEventListener('click', run);
-        // Return an object so callers can programmatically run it if needed
-        return { run };
-      }
+        function setHtml(html) { try { el.innerHTML = html; } catch (e) {} }
 
-      // Initialize diagnostics and expose for manual run in console
-      try {
-        window.__nasaDiagnostics = createDiagnostics();
-      } catch (e) {}
+        async function fetchWithTimeout(url, timeout = 8000) {
+          const controller = new AbortController();
+          const id = setTimeout(() => controller.abort(), timeout);
+          try {
+            const r = await fetch(url, { signal: controller.signal });
+            clearTimeout(id);
+            return r;
+          } catch (err) {
+            clearTimeout(id);
+            throw err;
+          }
+        }
+
+        async function runDiagnostics() {
+    setHtml(`<div class="row"><span class="label">API base:</span><code id="diagApi">${API_BASE}</code><button id="diagRun">Run checks</button></div><div id="diagResults"></div>`);
+          const btn = document.getElementById('diagRun');
+          const out = document.getElementById('diagResults');
+          if (!btn || !out) return;
+
+          async function doChecks() {
+            out.innerHTML = '<div class="row"><span class="label">/health</span><span id="h">checking…</span></div>';
+            try {
+              const h = await fetchWithTimeout(`${API_BASE.replace(/\/$/, '')}/health`, 6000);
+              if (h.ok) {
+                out.querySelector('#h').innerHTML = `<span class="ok">OK</span>`;
+              } else {
+                out.querySelector('#h').innerHTML = `<span class="err">HTTP ${h.status}</span>`;
+              }
+            } catch (err) {
+              out.querySelector('#h').innerHTML = `<span class="err">${err.message || 'failed'}</span>`;
+            }
+
+            // Test APOD proxy with a known historic date
+            out.insertAdjacentHTML('beforeend', `<div class="row"><span class="label">APOD proxy</span><span id="a">checking…</span></div>`);
+            try {
+              const aresp = await fetchWithTimeout(`${APOD_PROXY_PATH}?date=2003-04-28`, 8000);
+              if (aresp.ok) {
+                const j = await aresp.json();
+                out.querySelector('#a').innerHTML = `<span class="ok">OK — ${j.title ? j.title.substring(0,40) : 'APOD found'}</span>`;
+              } else {
+                out.querySelector('#a').innerHTML = `<span class="err">HTTP ${aresp.status}</span>`;
+              }
+            } catch (err) {
+              out.querySelector('#a').innerHTML = `<span class="err">${err.message || 'failed'}</span>`;
+            }
+
+            // Test NASA Images API search (public endpoint)
+            out.insertAdjacentHTML('beforeend', `<div class="row"><span class="label">Images API</span><span id="i">checking…</span></div>`);
+            try {
+              const iresp = await fetchWithTimeout(`${IMAGES_API_BASE}/search?q=nebula&media_type=image,video`, 8000);
+              if (iresp.ok) {
+                const ij = await iresp.json();
+                const count = (ij.collection && ij.collection.items && ij.collection.items.length) || 0;
+                out.querySelector('#i').innerHTML = `<span class="ok">${count} items</span>`;
+              } else {
+                out.querySelector('#i').innerHTML = `<span class="err">HTTP ${iresp.status}</span>`;
+              }
+            } catch (err) {
+              out.querySelector('#i').innerHTML = `<span class="err">${err.message || 'failed'}</span>`;
+            }
+          }
+
+          btn.addEventListener('click', doChecks);
+          // run once on create
+          doChecks().catch(() => {});
+        }
+
+        runDiagnostics().catch(() => {});
+        return el;
+      } catch (e) {
+        // don't block initialization
+        return null;
+      }
+    }
+
+    // create the diagnostics panel so developers can see API_BASE and quick checks
+    try { createDiagnosticsPanel(); } catch (e) {}
 
     // Expose a small API for debugging in console if needed
     window.__nasaDebug = {
