@@ -16,10 +16,10 @@ const path = require('path');
 const app = express();
 app.use(cors());
 
-// Force the server to listen on port 8000 to avoid preview/tooling changing the
-// port (some dev hosts set PORT=3000). This ensures the API endpoints remain
-// stable and match the frontend defaults used in the app.
-const PORT = 8000;
+// Use the environment-provided PORT when available (e.g. preview hosts may set
+// PORT=3000). Fallback to 8000 for local development. This keeps the server
+// flexible so the preview/domain origin and backend can match automatically.
+const PORT = process.env.PORT || 8000;
 const BIND_ADDR = process.env.BIND_ADDR || '0.0.0.0';
 const NASA_API_KEY = process.env.NASA_API_KEY || 'DEMO_KEY';
 
