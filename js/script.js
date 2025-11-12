@@ -23,11 +23,21 @@
   const DEFAULT_API_BASE = 'http://127.0.0.1:8000';
   // Determine API base in this priority order:
   // 1) window.NASA_CONFIG.API_BASE (developer override in config.js)
-  // 2) same host as the page but port 8000 (works when Live Preview / Codespace forwards the workspace host)
-  // 3) fallback to localhost:8000 as a last resort
-  const API_BASE = (window.NASA_CONFIG && window.NASA_CONFIG.API_BASE)
-    || (typeof location !== 'undefined' && location.hostname ? `${location.protocol}//${location.hostname}:8000` : DEFAULT_API_BASE)
-    || DEFAULT_API_BASE;
+  // 2) If running on localhost/127.0.0.1, use the same host but port 8000 (common dev server)
+  // 3) Otherwise use the page's origin (location.origin). This is important
+  //    for Codespaces / Live Preview where the preview domain proxies both
+  //    static files and backend on the same origin (no explicit :8000 port).
+  // 4) Fallback to DEFAULT_API_BASE.
+  let API_BASE = DEFAULT_API_BASE;
+  if (window.NASA_CONFIG && window.NASA_CONFIG.API_BASE) {
+    API_BASE = window.NASA_CONFIG.API_BASE;
+  } else if (typeof location !== 'undefined' && location.hostname) {
+    if (location.hostname === '127.0.0.1' || location.hostname === 'localhost') {
+      API_BASE = `${location.protocol}//${location.hostname}:8000`;
+    } else if (location.origin) {
+      API_BASE = location.origin; // use proxied origin in preview hosts
+    }
+  }
   const APOD_PROXY_PATH = `${API_BASE}/apod-proxy`;
   const RESOLVE_ASSET_PATH = `${API_BASE}/resolve-asset`;
   const IMAGE_PROXY_PATH = `${API_BASE}/image-proxy`;
